@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import json
-import os
 from typing import Any
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+
+from ai_client import call_ai
 
 
 def build_prompt(payload: dict[str, Any]) -> str:
@@ -25,44 +24,18 @@ def build_prompt(payload: dict[str, Any]) -> str:
     )
 
 
-def build_request_payload(prompt: str, model: str) -> dict[str, Any]:
-    return {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": "你是擅长网络运维文档的助手。"},
-            {"role": "user", "content": prompt},
-        ],
-        "temperature": 0.3,
-    }
-
-
 def generate_ai_summary(
     payload: dict[str, Any],
     endpoint: str = "",
     model: str = "",
 ) -> str:
-    resolved_endpoint = endpoint or os.environ.get("AI_ENDPOINT", "")
-    resolved_model = model or os.environ.get("AI_MODEL", "")
-    if not resolved_endpoint or not resolved_model:
-        return "AI 摘要未生成：缺少 AI_ENDPOINT 或 AI_MODEL 配置。"
-
     prompt = build_prompt(payload)
-    request_payload = build_request_payload(prompt, resolved_model)
-    request = Request(
-        resolved_endpoint,
-        data=json.dumps(request_payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
+    response, error = call_ai(
+        prompt,
+        endpoint=endpoint,
+        model=model,
+        system_prompt="你是擅长网络运维文档的助手。",
     )
-
-    try:
-        with urlopen(request, timeout=30) as response:
-            body = response.read().decode("utf-8")
-    except (HTTPError, URLError) as exc:
-        return f"AI 摘要未生成：请求失败（{exc}）。"
-
-    try:
-        data = json.loads(body)
-        return data["choices"][0]["message"]["content"].strip()
-    except (KeyError, IndexError, json.JSONDecodeError) as exc:
-        return f"AI 摘要未生成：响应解析失败（{exc}）。"
+    if error:
+        return f"AI 摘要未生成：{error}"
+    return response or "AI 摘要未生成：未返回内容。"

@@ -56,6 +56,32 @@ python3 src/generate_topology_doc.py \
 
 4. 在 `output/network_topology.md` 查看生成的公司网络拓扑文档。
 
+## 自动采集模块
+项目提供设备快照采集脚本，可通过 SSH 自动拉取设备信息，并可选用 AI 自动解析输出。
+
+### 自动采集（SSH）
+```bash
+python3 src/collect_device_snapshot.py \
+  --vendor huawei \
+  --host 10.0.0.1 \
+  --username admin \
+  --ssh-key ~/.ssh/id_rsa \
+  --output data/snapshots/core_switch.json \
+  --ai-parse
+```
+
+如需采集锐捷 AP，请将 `--vendor` 改为 `ruijie`。
+启用 `--ai-parse` 时同样依赖 `AI_ENDPOINT` 与 `AI_MODEL` 配置。
+
+### 手动交互采集
+当无法通过 SSH 采集时，可用交互式方式录入核心信息与邻居关系：
+
+```bash
+python3 src/collect_device_snapshot.py \
+  --interactive \
+  --output data/snapshots/manual_device.json
+```
+
 ## AI 接入说明
 脚本支持对接 OpenAI 兼容接口生成摘要，请配置环境变量或传参：
 
