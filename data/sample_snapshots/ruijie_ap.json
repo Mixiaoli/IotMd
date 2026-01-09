@@ -1,0 +1,29 @@
+{
+  "name": "锐捷AP-01",
+  "vendor": "锐捷",
+  "model": "RG-AP820-L",
+  "role": "无线接入",
+  "management_ip": "10.0.0.11",
+  "interfaces": [
+    {
+      "name": "ETH0",
+      "status": "up",
+      "vlan": "20",
+      "description": "上联接入交换机"
+    }
+  ],
+  "config_snippet": [
+    "ap mode fit",
+    "ssid profile corp-wifi",
+    " security wpa2-psk cipher aes"
+  ],
+  "neighbors": [
+    {
+      "device": "接入交换机-01",
+      "local_interface": "ETH0",
+      "remote_interface": "GE1/0/10",
+      "medium": "网线",
+      "note": "PoE 供电"
+    }
+  ]
+}

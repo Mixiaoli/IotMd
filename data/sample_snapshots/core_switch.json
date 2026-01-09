@@ -1,0 +1,29 @@
+{
+  "name": "核心交换机-01",
+  "vendor": "华为",
+  "model": "CloudEngine S5735",
+  "role": "核心",
+  "management_ip": "10.0.0.1",
+  "interfaces": [
+    {
+      "name": "GE1/0/1",
+      "status": "up",
+      "vlan": "10",
+      "description": "到接入交换机"
+    }
+  ],
+  "config_snippet": [
+    "interface Vlanif10",
+    " ip address 10.0.10.1 255.255.255.0",
+    " quit"
+  ],
+  "neighbors": [
+    {
+      "device": "接入交换机-01",
+      "local_interface": "GE1/0/1",
+      "remote_interface": "GE1/0/24",
+      "medium": "光纤",
+      "note": "上联 10G"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "name": "接入交换机-01",
+  "vendor": "华为",
+  "model": "S2720",
+  "role": "接入",
+  "management_ip": "10.0.0.2",
+  "interfaces": [
+    {
+      "name": "GE1/0/24",
+      "status": "up",
+      "vlan": "10",
+      "description": "到核心交换机"
+    },
+    {
+      "name": "GE1/0/10",
+      "status": "up",
+      "vlan": "20",
+      "description": "到锐捷 AP"
+    }
+  ],
+  "config_snippet": [
+    "interface GigabitEthernet1/0/10",
+    " port link-type access",
+    " port default vlan 20",
+    " quit"
+  ],
+  "neighbors": [
+    {
+      "device": "核心交换机-01",
+      "local_interface": "GE1/0/24",
+      "remote_interface": "GE1/0/1",
+      "medium": "光纤",
+      "note": "上联 10G"
+    },
+    {
+      "device": "锐捷AP-01",
+      "local_interface": "GE1/0/10",
+      "remote_interface": "ETH0",
+      "medium": "网线",
+      "note": "PoE 供电"
+    }
+  ]
+}

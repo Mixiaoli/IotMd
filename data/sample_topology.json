@@ -1,0 +1,90 @@
+{
+  "company": "示例科技有限公司",
+  "region": "总部机房",
+  "description": "华为交换机与锐捷 AP 的核心接入拓扑示例",
+  "topology": {
+    "links": [
+      {
+        "source": "核心交换机-01",
+        "target": "接入交换机-01",
+        "medium": "光纤",
+        "note": "上联 10G"
+      },
+      {
+        "source": "接入交换机-01",
+        "target": "锐捷AP-01",
+        "medium": "网线",
+        "note": "PoE 供电"
+      }
+    ]
+  },
+  "devices": [
+    {
+      "name": "核心交换机-01",
+      "vendor": "华为",
+      "model": "CloudEngine S5735",
+      "role": "核心",
+      "management_ip": "10.0.0.1",
+      "interfaces": [
+        {
+          "name": "GE1/0/1",
+          "status": "up",
+          "vlan": "10",
+          "description": "到接入交换机"
+        }
+      ],
+      "config_snippet": [
+        "interface Vlanif10",
+        " ip address 10.0.10.1 255.255.255.0",
+        " quit"
+      ]
+    },
+    {
+      "name": "接入交换机-01",
+      "vendor": "华为",
+      "model": "S2720",
+      "role": "接入",
+      "management_ip": "10.0.0.2",
+      "interfaces": [
+        {
+          "name": "GE1/0/24",
+          "status": "up",
+          "vlan": "10",
+          "description": "到核心交换机"
+        },
+        {
+          "name": "GE1/0/10",
+          "status": "up",
+          "vlan": "20",
+          "description": "到锐捷 AP"
+        }
+      ],
+      "config_snippet": [
+        "interface GigabitEthernet1/0/10",
+        " port link-type access",
+        " port default vlan 20",
+        " quit"
+      ]
+    },
+    {
+      "name": "锐捷AP-01",
+      "vendor": "锐捷",
+      "model": "RG-AP820-L",
+      "role": "无线接入",
+      "management_ip": "10.0.0.11",
+      "interfaces": [
+        {
+          "name": "ETH0",
+          "status": "up",
+          "vlan": "20",
+          "description": "上联接入交换机"
+        }
+      ],
+      "config_snippet": [
+        "ap mode fit",
+        "ssid profile corp-wifi",
+        " security wpa2-psk cipher aes"
+      ]
+    }
+  ]
+}
