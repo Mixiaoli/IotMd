@@ -82,6 +82,17 @@ python3 src/collect_device_snapshot.py \
   --output data/snapshots/manual_device.json
 ```
 
+### AI 交互采集
+使用 AI 提问引导录入设备信息（无需预先编辑 JSON）：
+
+```bash
+python3 src/collect_device_snapshot.py \
+  --ai-interactive \
+  --output data/snapshots/ai_device.json \
+  --ai-endpoint "https://api.openai.com/v1/chat/completions" \
+  --ai-model "gpt-4o-mini"
+```
+
 ## AI 接入说明
 脚本支持对接 OpenAI 兼容接口生成摘要，请配置环境变量或传参：
 

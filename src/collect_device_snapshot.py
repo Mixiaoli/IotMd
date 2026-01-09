@@ -138,6 +138,63 @@ def collect_interactive() -> dict[str, Any]:
     }
 
 
+def ai_interview(
+    endpoint: str,
+    model: str,
+) -> dict[str, Any]:
+    system_prompt = "你是网络设备采集助手，需要通过问答收集设备信息。"
+    prompt = (
+        "请输出一个问题列表(JSON 数组)，用于采集网络设备快照。"
+        "每个问题包含字段 id, question, hint。必须覆盖：设备名称、厂商、型号、角色、管理IP、"
+        "接口列表、邻居列表、关键配置片段。"
+        "接口列表和邻居列表需要提示用户可多次输入，直到输入空行结束。"
+    )
+    response, error = call_ai(prompt, endpoint=endpoint, model=model, system_prompt=system_prompt)
+    if error or not response:
+        raise SystemExit(f"AI 交互失败：{error or '无返回内容'}")
+    try:
+        questions = json.loads(response)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"AI 交互失败：问题列表解析错误（{exc}）")
+
+    answers: dict[str, Any] = {}
+    for item in questions:
+        question = item.get("question", "")
+        hint = item.get("hint", "")
+        if item.get("id") in {"interfaces", "neighbors", "config_snippet"}:
+            print(f"{question} {hint}".strip())
+            entries: list[Any] = []
+            while True:
+                line = input("> ").strip()
+                if not line:
+                    break
+                entries.append(line)
+            answers[item.get("id")] = entries
+        else:
+            prompt_text = f"{question} {hint}".strip() + ": "
+            answers[item.get("id")] = input(prompt_text).strip()
+
+    normalize_prompt = (
+        "请将以下用户回答整理为标准化设备快照 JSON，字段包括："
+        "name, vendor, model, role, management_ip, interfaces (name/status/vlan/description), "
+        "neighbors (device/local_interface/remote_interface/medium/note), config_snippet (list)。"
+        "如果字段缺失，请返回空字符串或空列表。\n"
+        f"用户回答：{json.dumps(answers, ensure_ascii=False)}"
+    )
+    normalized, error = call_ai(
+        normalize_prompt,
+        endpoint=endpoint,
+        model=model,
+        system_prompt="你是网络设备数据整理助手。",
+    )
+    if error or not normalized:
+        raise SystemExit(f"AI 交互失败：{error or '无返回内容'}")
+    try:
+        return json.loads(normalized)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"AI 交互失败：设备快照解析错误（{exc}）")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="采集设备信息生成快照 JSON")
     parser.add_argument("--output", required=True, help="输出 JSON 文件路径")
@@ -151,6 +208,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ai-endpoint", default="", help="AI 接口地址")
     parser.add_argument("--ai-model", default="", help="AI 模型名称")
     parser.add_argument("--interactive", action="store_true", help="交互式手动录入")
+    parser.add_argument("--ai-interactive", action="store_true", help="AI 引导式交互录入")
     return parser.parse_args()
 
 
@@ -161,6 +219,8 @@ def main() -> None:
 
     if args.interactive:
         snapshot = collect_interactive()
+    elif args.ai_interactive:
+        snapshot = ai_interview(args.ai_endpoint, args.ai_model)
     elif args.host and args.vendor and args.username and args.ssh_key:
         commands = VENDOR_COMMANDS[args.vendor]
         raw_outputs = run_ssh_commands(args.host, args.username, args.ssh_key, commands)
