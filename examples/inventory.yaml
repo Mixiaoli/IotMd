@@ -1,0 +1,24 @@
+site: "HQ"
+contacts:
+  owner: "NetOps"
+  phone: "+86-10-5555-0000"
+  email: "netops@example.com"
+
+ai:
+  enabled: false
+  api_base: "https://api.openai.com/v1"
+  model: "gpt-4o-mini"
+
+devices:
+  - name: "core-sw-1"
+    vendor: "huawei"
+    host: "192.0.2.10"
+    port: 22
+    username: "netops"
+    password: "password"
+  - name: "ap-1"
+    vendor: "ruijie"
+    host: "192.0.2.20"
+    port: 22
+    username: "netops"
+    password: "password"
