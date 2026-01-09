@@ -25,6 +25,16 @@
 
 ## 快速开始
 1. 准备设备快照数据（示例见 `data/sample_snapshots/`）。
+
+`data/sample_snapshots/` 目录内每个 JSON 文件代表一台设备的采集快照，你需要按实际环境修改以下字段：
+
+- `name`：设备名称（用于拓扑节点识别）。
+- `vendor` / `model` / `role`：厂商、型号与角色描述。
+- `management_ip`：设备管理地址。
+- `interfaces`：接口信息列表，包含接口名称、状态、VLAN 与描述。
+- `config_snippet`：关键配置片段（可选，用于文档展示）。
+- `neighbors`：邻居设备信息，用于生成链路拓扑，需要填写 `device`、`local_interface`、`remote_interface`、`medium`、`note`。
+
 2. 运行扫描脚本生成拓扑数据：
 
 ```bash
