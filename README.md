@@ -90,7 +90,7 @@ python3 src/collect_device_snapshot.py \
 ```
 
 ### AI 交互采集
-使用 AI 提问引导录入设备信息（无需预先编辑 JSON）：
+使用 AI 提问引导录入设备信息（无需预先编辑 JSON）。在 PowerShell 中请使用单行命令或反引号续行（不要使用 `\` 续行符）：
 
 ```bash
 python3 src/collect_device_snapshot.py \
@@ -98,6 +98,28 @@ python3 src/collect_device_snapshot.py \
   --output data/snapshots/ai_device.json \
   --ai-endpoint "https://api.openai.com/v1/chat/completions" \
   --ai-model "gpt-4o-mini"
+```
+
+PowerShell 单行示例：
+
+```powershell
+python src/collect_device_snapshot.py --ai-interactive --output data/snapshots/ai_device.json --ai-endpoint "https://api.openai.com/v1/chat/completions" --ai-model "gpt-4o-mini"
+```
+
+PowerShell 续行示例：
+
+```powershell
+python src/collect_device_snapshot.py `
+  --ai-interactive `
+  --output data/snapshots/ai_device.json `
+  --ai-endpoint "https://api.openai.com/v1/chat/completions" `
+  --ai-model "gpt-4o-mini"
+```
+
+也可使用快捷脚本：
+
+```powershell
+.\run_collect.ps1 -AiInteractive -Output data/snapshots/ai_device.json -AiEndpoint "https://api.openai.com/v1/chat/completions" -AiModel "gpt-4o-mini"
 ```
 
 ## AI 接入说明
