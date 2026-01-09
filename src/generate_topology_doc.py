@@ -10,6 +10,8 @@ from typing import Any
 from ai_summary import generate_ai_summary
 
 def load_json(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        raise FileNotFoundError(f"输入文件不存在：{path}")
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
@@ -156,12 +158,20 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    payload = load_json(Path(args.input))
+    input_path = Path(args.input)
+    output_path = Path(args.output)
+    print(f"[IotMd] 读取输入文件: {input_path}")
+    try:
+        payload = load_json(input_path)
+    except FileNotFoundError as exc:
+        raise SystemExit(str(exc))
     ai_summary = None
     if args.ai_summary:
+        print("[IotMd] 正在生成 AI 摘要...")
         ai_summary = generate_ai_summary(payload, args.ai_endpoint, args.ai_model)
     content = render_markdown(payload, ai_summary)
-    write_output(content, Path(args.output))
+    write_output(content, output_path)
+    print(f"[IotMd] 已生成文档: {output_path}")
 
 
 if __name__ == "__main__":

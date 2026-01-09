@@ -56,6 +56,13 @@ python3 src/generate_topology_doc.py \
 
 4. 在 `output/network_topology.md` 查看生成的公司网络拓扑文档。
 
+### PowerShell 快捷方式
+在 Windows PowerShell 中可直接运行：
+
+```powershell
+.\run.ps1 -Input data/generated_topology.json -Output output/network_topology.md -AiSummary
+```
+
 ## 自动采集模块
 项目提供设备快照采集脚本，可通过 SSH 自动拉取设备信息，并可选用 AI 自动解析输出。
 
