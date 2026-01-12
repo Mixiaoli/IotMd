@@ -28,6 +28,17 @@ def main() -> None:
         default="output",
         help="生成文档输出目录",
     )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=15,
+        help="设备采集超时时间（秒）",
+    )
+    parser.add_argument(
+        "--continue-on-error",
+        action="store_true",
+        help="单台设备采集失败时继续处理其他设备",
+    )
 
     args = parser.parse_args()
     inventory = load_inventory(Path(args.inventory))
@@ -37,19 +48,30 @@ def main() -> None:
         collector = COLLECTORS.get(device.vendor)
         if not collector:
             raise ValueError(f"不支持的设备厂商: {device.vendor}")
-        snapshots.append(
-            collector(
-                name=device.name,
-                host=device.host,
-                port=device.port,
-                username=device.username,
-                password=device.password,
+        print(f"开始采集 {device.name} ({device.vendor}) {device.host}:{device.port} ...")
+        try:
+            snapshots.append(
+                collector(
+                    name=device.name,
+                    host=device.host,
+                    port=device.port,
+                    username=device.username,
+                    password=device.password,
+                    timeout=args.timeout,
+                )
             )
-        )
+            print(f"完成采集 {device.name}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"采集失败 {device.name}: {exc}")
+            if not args.continue_on_error:
+                raise
 
-    bundle = build_documents(inventory, snapshots)
-    write_documents(bundle, args.output)
-    print(f"已生成文档到 {args.output}")
+    if snapshots:
+        bundle = build_documents(inventory, snapshots)
+        write_documents(bundle, args.output)
+        print(f"已生成文档到 {args.output}")
+    else:
+        print("未采集到任何设备数据，未生成文档。")
 
 
 if __name__ == "__main__":

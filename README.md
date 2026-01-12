@@ -31,6 +31,16 @@ iotmd --inventory examples/inventory.yaml --output output
 python -m iotmd --inventory examples/inventory.yaml --output output
 ```
 
+## 常见问题
+
+- 命令执行后没有任何输出？
+  - 请确认设备网络可达、账号密码正确。
+  - 尝试加上超时与继续执行参数，例如：
+    ```bash
+    python -m iotmd --inventory examples/inventory.yaml --output output --timeout 10 --continue-on-error
+    ```
+  - 如果设备启用了分页输出，请确保未关闭 SSH 交互提示。
+
 ## 目录结构
 
 - `iotmd/` 核心代码

@@ -5,6 +5,7 @@ from iotmd.ssh import run_commands
 
 
 COMMANDS = {
+    "disable_paging": "terminal length 0",
     "config": "show running-config",
     "lldp": "show lldp neighbors",
     "interfaces": "show interfaces brief",
@@ -17,13 +18,20 @@ def collect_ruijie(
     port: int,
     username: str,
     password: str,
+    timeout: int = 15,
 ) -> DeviceSnapshot:
     results = run_commands(
         host=host,
         port=port,
         username=username,
         password=password,
-        commands=list(COMMANDS.values()),
+        pre_commands=[COMMANDS["disable_paging"]],
+        commands=[
+            COMMANDS["config"],
+            COMMANDS["lldp"],
+            COMMANDS["interfaces"],
+        ],
+        timeout=timeout,
     )
 
     outputs = {item.command: item.output for item in results}
