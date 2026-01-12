@@ -10,10 +10,11 @@
 
 ## 快速开始
 
-1. 安装依赖
+1. 安装依赖并安装 CLI
 
 ```bash
 pip install -r requirements.txt
+pip install -e .
 ```
 
 2. 准备设备清单（示例在 `examples/inventory.yaml`）
@@ -22,6 +23,12 @@ pip install -r requirements.txt
 
 ```bash
 iotmd --inventory examples/inventory.yaml --output output
+```
+
+如果没有安装 CLI，也可以直接运行：
+
+```bash
+python -m iotmd --inventory examples/inventory.yaml --output output
 ```
 
 ## 目录结构
