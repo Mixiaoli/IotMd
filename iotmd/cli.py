@@ -6,10 +6,11 @@ from pathlib import Path
 from paramiko.ssh_exception import AuthenticationException
 
 from iotmd.ai import resolve_api_key
+from iotmd.chat import ChatContext, run_chat_loop
 from iotmd.collectors import DeviceSnapshot
 from iotmd.collectors.huawei import collect_huawei
 from iotmd.collectors.ruijie import collect_ruijie
-from iotmd.config import load_inventory
+from iotmd.config import Inventory, load_inventory
 from iotmd.generator import build_documents, write_documents
 from iotmd.interactive import prompt_credentials, prompt_inventory, prompt_yes_no
 
@@ -50,14 +51,50 @@ def main() -> None:
     )
 
     args = parser.parse_args()
-    inventory = (
-        prompt_inventory()
-        if args.interactive
-        else load_inventory(Path(args.inventory))
-    )
+    if args.interactive:
+        _interactive_menu(args)
+        return
+
+    inventory = load_inventory(Path(args.inventory))
     if inventory.ai.enabled and not resolve_api_key(inventory.ai.api_key):
         print("AI 总结已开启，但未检测到 DASHSCOPE_API_KEY，已回退到默认摘要。")
 
+    snapshots = _collect_snapshots(args, inventory)
+    _finalize_documents(args, inventory, snapshots)
+
+
+def _interactive_menu(args: argparse.Namespace) -> None:
+    while True:
+        print(
+            "\n请选择功能:\n"
+            "1. 生成交换机文档\n"
+            "2. 自然语言查询/诊断\n"
+            "3. 退出\n"
+        )
+        choice = input("请输入选项编号: ").strip()
+        if choice == "1":
+            inventory = prompt_inventory()
+            if inventory.ai.enabled and not resolve_api_key(inventory.ai.api_key):
+                print("AI 总结已开启，但未检测到 DASHSCOPE_API_KEY，已回退到默认摘要。")
+            snapshots = _collect_snapshots(args, inventory)
+            _finalize_documents(args, inventory, snapshots)
+        elif choice == "2":
+            inventory = prompt_inventory()
+            if inventory.ai.enabled and not resolve_api_key(inventory.ai.api_key):
+                print("AI 总结已开启，但未检测到 DASHSCOPE_API_KEY，已回退到默认摘要。")
+            snapshots = _collect_snapshots(args, inventory)
+            run_chat_loop(ChatContext(ai=inventory.ai, snapshots=snapshots))
+        elif choice == "3":
+            print("已退出程序。")
+            break
+        else:
+            print("无效选项，请重新输入。")
+
+
+def _collect_snapshots(
+    args: argparse.Namespace,
+    inventory: Inventory,
+) -> list[DeviceSnapshot]:
     snapshots: list[DeviceSnapshot] = []
     for device in inventory.devices:
         collector = COLLECTORS.get(device.vendor)
@@ -98,12 +135,20 @@ def main() -> None:
                     raise
                 break
 
-    if snapshots:
-        bundle = build_documents(inventory, snapshots)
-        write_documents(bundle, args.output)
-        print(f"已生成文档到 {args.output}")
-    else:
+    return snapshots
+
+
+def _finalize_documents(
+    args: argparse.Namespace,
+    inventory: Inventory,
+    snapshots: list[DeviceSnapshot],
+) -> None:
+    if not snapshots:
         print("未采集到任何设备数据，未生成文档。")
+        return
+    bundle = build_documents(inventory, snapshots)
+    write_documents(bundle, args.output)
+    print(f"已生成文档到 {args.output}")
 
 
 if __name__ == "__main__":
