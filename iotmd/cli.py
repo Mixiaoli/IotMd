@@ -8,6 +8,7 @@ from iotmd.collectors.huawei import collect_huawei
 from iotmd.collectors.ruijie import collect_ruijie
 from iotmd.config import load_inventory
 from iotmd.generator import build_documents, write_documents
+from iotmd.interactive import prompt_inventory
 
 
 COLLECTORS = {
@@ -22,6 +23,11 @@ def main() -> None:
         "--inventory",
         default="examples/inventory.yaml",
         help="设备清单 YAML 文件路径",
+    )
+    parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help="交互式输入设备信息并生成文档",
     )
     parser.add_argument(
         "--output",
@@ -41,7 +47,11 @@ def main() -> None:
     )
 
     args = parser.parse_args()
-    inventory = load_inventory(Path(args.inventory))
+    inventory = (
+        prompt_inventory()
+        if args.interactive
+        else load_inventory(Path(args.inventory))
+    )
 
     snapshots: list[DeviceSnapshot] = []
     for device in inventory.devices:

@@ -31,6 +31,12 @@ iotmd --inventory examples/inventory.yaml --output output
 python -m iotmd --inventory examples/inventory.yaml --output output
 ```
 
+如果希望启动后直接交互输入设备信息（IP/账号/密码），请使用：
+
+```bash
+python -m iotmd --interactive --output output
+```
+
 ## 常见问题
 
 - 命令执行后没有任何输出？
@@ -54,8 +60,8 @@ python -m iotmd --inventory examples/inventory.yaml --output output
 ```yaml
 ai:
   enabled: true
-  api_base: "https://api.openai.com/v1"
-  model: "gpt-4o-mini"
+  api_base: "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
+  model: "qwen-turbo"
 ```
 
-并设置环境变量 `OPENAI_API_KEY`。
+并设置环境变量 `DASHSCOPE_API_KEY`。

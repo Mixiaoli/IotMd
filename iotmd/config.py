@@ -40,8 +40,13 @@ def load_inventory(path: str | Path) -> Inventory:
     ai_data = data.get("ai", {})
     ai = AiConfig(
         enabled=bool(ai_data.get("enabled", False)),
-        api_base=str(ai_data.get("api_base", "https://api.openai.com/v1")),
-        model=str(ai_data.get("model", "gpt-4o-mini")),
+        api_base=str(
+            ai_data.get(
+                "api_base",
+                "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation",
+            )
+        ),
+        model=str(ai_data.get("model", "qwen-turbo")),
     )
 
     devices = [

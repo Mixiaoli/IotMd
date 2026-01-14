@@ -23,32 +23,38 @@ def summarize_device(
     if not enabled:
         return AiSummary(device_name=snapshot.name, summary=_fallback_summary(snapshot))
 
-    api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = os.environ.get("DASHSCOPE_API_KEY")
     if not api_key:
         return AiSummary(device_name=snapshot.name, summary=_fallback_summary(snapshot))
 
     response = requests.post(
-        f"{api_base}/chat/completions",
+        api_base,
         headers={"Authorization": f"Bearer {api_key}"},
         json={
             "model": model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": "你是网络运维文档助手，请用简洁中文总结设备角色。",
-                },
-                {
-                    "role": "user",
-                    "content": _build_prompt(snapshot),
-                },
-            ],
-            "temperature": 0.2,
+            "input": {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "你是网络运维文档助手，请用简洁中文总结设备角色。",
+                    },
+                    {
+                        "role": "user",
+                        "content": _build_prompt(snapshot),
+                    },
+                ]
+            },
+            "parameters": {"temperature": 0.2},
         },
         timeout=30,
     )
     response.raise_for_status()
     data = response.json()
-    content = data["choices"][0]["message"]["content"].strip()
+    output = data.get("output", {})
+    content = output.get("text")
+    if not content:
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+    content = str(content).strip()
     return AiSummary(device_name=snapshot.name, summary=content)
 
 

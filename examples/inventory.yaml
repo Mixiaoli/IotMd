@@ -6,8 +6,8 @@ contacts:
 
 ai:
   enabled: false
-  api_base: "https://api.openai.com/v1"
-  model: "gpt-4o-mini"
+  api_base: "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
+  model: "qwen-turbo"
 
 devices:
   - name: "core-sw-1"
