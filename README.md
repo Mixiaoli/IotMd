@@ -46,6 +46,7 @@ python -m iotmd --interactive --output output
     python -m iotmd --inventory examples/inventory.yaml --output output --timeout 10 --continue-on-error
     ```
   - 如果设备启用了分页输出，请确保未关闭 SSH 交互提示。
+  - 交互模式下若认证失败，会提示重新输入账号密码。
 
 ## 目录结构
 

@@ -3,13 +3,15 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from paramiko.ssh_exception import AuthenticationException
+
 from iotmd.ai import resolve_api_key
 from iotmd.collectors import DeviceSnapshot
 from iotmd.collectors.huawei import collect_huawei
 from iotmd.collectors.ruijie import collect_ruijie
 from iotmd.config import load_inventory
 from iotmd.generator import build_documents, write_documents
-from iotmd.interactive import prompt_inventory
+from iotmd.interactive import prompt_credentials, prompt_inventory, prompt_yes_no
 
 
 COLLECTORS = {
@@ -62,22 +64,39 @@ def main() -> None:
         if not collector:
             raise ValueError(f"不支持的设备厂商: {device.vendor}")
         print(f"开始采集 {device.name} ({device.vendor}) {device.host}:{device.port} ...")
-        try:
-            snapshots.append(
-                collector(
-                    name=device.name,
-                    host=device.host,
-                    port=device.port,
-                    username=device.username,
-                    password=device.password,
-                    timeout=args.timeout,
+        username = device.username
+        password = device.password
+        while True:
+            try:
+                snapshots.append(
+                    collector(
+                        name=device.name,
+                        host=device.host,
+                        port=device.port,
+                        username=username,
+                        password=password,
+                        timeout=args.timeout,
+                    )
                 )
-            )
-            print(f"完成采集 {device.name}")
-        except Exception as exc:  # noqa: BLE001
-            print(f"采集失败 {device.name}: {exc}")
-            if not args.continue_on_error:
-                raise
+                print(f"完成采集 {device.name}")
+                break
+            except AuthenticationException as exc:
+                print(f"认证失败 {device.name}: {exc}")
+                if args.interactive and prompt_yes_no("是否重新输入账号密码 (y/n)", default="y"):
+                    username, password = prompt_credentials(
+                        inventory.ai,
+                        device_name=device.name,
+                        default_username=username,
+                    )
+                    continue
+                if not args.continue_on_error:
+                    raise
+                break
+            except Exception as exc:  # noqa: BLE001
+                print(f"采集失败 {device.name}: {exc}")
+                if not args.continue_on_error:
+                    raise
+                break
 
     if snapshots:
         bundle = build_documents(inventory, snapshots)
