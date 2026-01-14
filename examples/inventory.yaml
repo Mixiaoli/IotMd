@@ -8,6 +8,7 @@ ai:
   enabled: false
   api_base: "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
   model: "qwen-turbo"
+  api_key: ""
 
 devices:
   - name: "core-sw-1"

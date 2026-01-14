@@ -6,7 +6,7 @@
 
 - 支持华为交换机与锐捷 AP 设备配置与 LLDP 信息采集。
 - 自动生成 Markdown 文档，包含总览、拓扑图（Mermaid）与设备详情。
-- 可选启用 AI 总结，输出更易读的设备角色描述。
+- 可选启用 AI 总结，输出更易读的设备角色描述，并在交互模式中由 AI 生成更自然的问题。
 
 ## 快速开始
 
@@ -31,7 +31,7 @@ iotmd --inventory examples/inventory.yaml --output output
 python -m iotmd --inventory examples/inventory.yaml --output output
 ```
 
-如果希望启动后直接交互输入设备信息（IP/账号/密码），请使用：
+如果希望启动后直接交互输入设备信息（IP/账号/密码），并由 AI 提示提问，请使用：
 
 ```bash
 python -m iotmd --interactive --output output
@@ -62,6 +62,7 @@ ai:
   enabled: true
   api_base: "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
   model: "qwen-turbo"
+  api_key: ""
 ```
 
-并设置环境变量 `DASHSCOPE_API_KEY`。
+支持环境变量 `DASHSCOPE_API_KEY`，或在交互模式中输入 API Key。

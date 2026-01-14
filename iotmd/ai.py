@@ -19,17 +19,18 @@ def summarize_device(
     api_base: str,
     model: str,
     enabled: bool,
+    api_key: str | None = None,
 ) -> AiSummary:
     if not enabled:
         return AiSummary(device_name=snapshot.name, summary=_fallback_summary(snapshot))
 
-    api_key = os.environ.get("DASHSCOPE_API_KEY")
-    if not api_key:
+    resolved_key = _resolve_api_key(api_key)
+    if not resolved_key:
         return AiSummary(device_name=snapshot.name, summary=_fallback_summary(snapshot))
 
     response = requests.post(
         api_base,
-        headers={"Authorization": f"Bearer {api_key}"},
+        headers={"Authorization": f"Bearer {resolved_key}"},
         json={
             "model": model,
             "input": {
@@ -58,6 +59,47 @@ def summarize_device(
     return AiSummary(device_name=snapshot.name, summary=content)
 
 
+def build_ai_question(
+    label: str,
+    api_base: str,
+    model: str,
+    api_key: str | None,
+) -> str:
+    resolved_key = resolve_api_key(api_key)
+    if not resolved_key:
+        return label
+
+    response = requests.post(
+        api_base,
+        headers={"Authorization": f"Bearer {resolved_key}"},
+        json={
+            "model": model,
+            "input": {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "你是网络运维助手，请把字段转成友好且简洁的问题。",
+                    },
+                    {
+                        "role": "user",
+                        "content": f"字段: {label}",
+                    },
+                ]
+            },
+            "parameters": {"temperature": 0.2},
+        },
+        timeout=20,
+    )
+    response.raise_for_status()
+    data = response.json()
+    output = data.get("output", {})
+    content = output.get("text")
+    if not content:
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+    content = str(content).strip()
+    return content or label
+
+
 def _fallback_summary(snapshot: DeviceSnapshot) -> str:
     return (
         f"设备 {snapshot.name} ({snapshot.vendor}) 已采集配置与接口信息。"
@@ -75,3 +117,11 @@ def _build_prompt(snapshot: DeviceSnapshot) -> str:
         "配置片段: \n"
         f"{snapshot.config[:2000]}\n"
     )
+
+
+def resolve_api_key(api_key: str | None) -> str | None:
+    return api_key or os.environ.get("DASHSCOPE_API_KEY")
+
+
+def _resolve_api_key(api_key: str | None) -> str | None:
+    return resolve_api_key(api_key)

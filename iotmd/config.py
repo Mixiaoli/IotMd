@@ -12,6 +12,7 @@ class AiConfig:
     enabled: bool
     api_base: str
     model: str
+    api_key: str | None = None
 
 
 @dataclass(frozen=True)
@@ -47,6 +48,7 @@ def load_inventory(path: str | Path) -> Inventory:
             )
         ),
         model=str(ai_data.get("model", "qwen-turbo")),
+        api_key=str(ai_data.get("api_key")) if ai_data.get("api_key") else None,
     )
 
     devices = [

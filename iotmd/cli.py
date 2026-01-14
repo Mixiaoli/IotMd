@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from iotmd.ai import resolve_api_key
 from iotmd.collectors import DeviceSnapshot
 from iotmd.collectors.huawei import collect_huawei
 from iotmd.collectors.ruijie import collect_ruijie
@@ -52,6 +53,8 @@ def main() -> None:
         if args.interactive
         else load_inventory(Path(args.inventory))
     )
+    if inventory.ai.enabled and not resolve_api_key(inventory.ai.api_key):
+        print("AI 总结已开启，但未检测到 DASHSCOPE_API_KEY，已回退到默认摘要。")
 
     snapshots: list[DeviceSnapshot] = []
     for device in inventory.devices:

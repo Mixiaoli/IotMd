@@ -18,7 +18,13 @@ class DocumentBundle:
 
 def build_documents(inventory: Inventory, snapshots: list[DeviceSnapshot]) -> DocumentBundle:
     summaries = [
-        summarize_device(snapshot, inventory.ai.api_base, inventory.ai.model, inventory.ai.enabled)
+        summarize_device(
+            snapshot,
+            inventory.ai.api_base,
+            inventory.ai.model,
+            inventory.ai.enabled,
+            inventory.ai.api_key,
+        )
         for snapshot in snapshots
     ]
 
