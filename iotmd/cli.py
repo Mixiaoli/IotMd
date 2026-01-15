@@ -56,34 +56,38 @@ def main() -> None:
         return
 
     inventory = load_inventory(Path(args.inventory))
-    if inventory.ai.enabled and not resolve_api_key(inventory.ai.api_key):
-        print("AI 总结已开启，但未检测到 DASHSCOPE_API_KEY，已回退到默认摘要。")
+    _warn_ai_key(inventory)
 
     snapshots = _collect_snapshots(args, inventory)
     _finalize_documents(args, inventory, snapshots)
 
 
 def _interactive_menu(args: argparse.Namespace) -> None:
+    _print_welcome()
     while True:
         print(
             "\n请选择功能:\n"
-            "1. 生成交换机文档\n"
-            "2. 自然语言查询/诊断\n"
+            "1. 自然语言查询/诊断（持续对话）\n"
+            "2. 生成交换机文档\n"
             "3. 退出\n"
         )
         choice = input("请输入选项编号: ").strip()
         if choice == "1":
             inventory = prompt_inventory()
-            if inventory.ai.enabled and not resolve_api_key(inventory.ai.api_key):
-                print("AI 总结已开启，但未检测到 DASHSCOPE_API_KEY，已回退到默认摘要。")
+            _warn_ai_key(inventory)
             snapshots = _collect_snapshots(args, inventory)
-            _finalize_documents(args, inventory, snapshots)
+            run_chat_loop(
+                ChatContext(
+                    ai=inventory.ai,
+                    snapshots=snapshots,
+                    generate_docs=lambda: _finalize_documents(args, inventory, snapshots),
+                )
+            )
         elif choice == "2":
             inventory = prompt_inventory()
-            if inventory.ai.enabled and not resolve_api_key(inventory.ai.api_key):
-                print("AI 总结已开启，但未检测到 DASHSCOPE_API_KEY，已回退到默认摘要。")
+            _warn_ai_key(inventory)
             snapshots = _collect_snapshots(args, inventory)
-            run_chat_loop(ChatContext(ai=inventory.ai, snapshots=snapshots))
+            _finalize_documents(args, inventory, snapshots)
         elif choice == "3":
             print("已退出程序。")
             break
@@ -149,6 +153,18 @@ def _finalize_documents(
     bundle = build_documents(inventory, snapshots)
     write_documents(bundle, args.output)
     print(f"已生成文档到 {args.output}")
+
+
+def _warn_ai_key(inventory: Inventory) -> None:
+    if inventory.ai.enabled and not resolve_api_key(inventory.ai.api_key):
+        print("AI 总结已开启，但未检测到 DASHSCOPE_API_KEY，已回退到默认摘要。")
+
+
+def _print_welcome() -> None:
+    print(
+        "\n欢迎使用 IotMd 运维助手。你可以先进行自然语言交互，"
+        "也可以选择生成交换机文档。"
+    )
 
 
 if __name__ == "__main__":
