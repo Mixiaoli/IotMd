@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 import requests
+from requests.exceptions import RequestException
 
 from iotmd.collectors import DeviceSnapshot
 from iotmd.config import AiConfig
@@ -30,35 +31,38 @@ def summarize_device(
     if not resolved_key:
         return AiSummary(device_name=snapshot.name, summary=_fallback_summary(snapshot))
 
-    response = requests.post(
-        api_base,
-        headers={"Authorization": f"Bearer {resolved_key}"},
-        json={
-            "model": model,
-            "input": {
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "你是网络运维文档助手，请用简洁中文总结设备角色。",
-                    },
-                    {
-                        "role": "user",
-                        "content": _build_prompt(snapshot),
-                    },
-                ]
+    try:
+        response = requests.post(
+            api_base,
+            headers={"Authorization": f"Bearer {resolved_key}"},
+            json={
+                "model": model,
+                "input": {
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "你是网络运维文档助手，请用简洁中文总结设备角色。",
+                        },
+                        {
+                            "role": "user",
+                            "content": _build_prompt(snapshot),
+                        },
+                    ]
+                },
+                "parameters": {"temperature": 0.2},
             },
-            "parameters": {"temperature": 0.2},
-        },
-        timeout=30,
-    )
-    response.raise_for_status()
-    data = response.json()
-    output = data.get("output", {})
-    content = output.get("text")
-    if not content:
-        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-    content = str(content).strip()
-    return AiSummary(device_name=snapshot.name, summary=content)
+            timeout=30,
+        )
+        response.raise_for_status()
+        data = response.json()
+        output = data.get("output", {})
+        content = output.get("text")
+        if not content:
+            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        content = str(content).strip()
+        return AiSummary(device_name=snapshot.name, summary=content)
+    except RequestException:
+        return AiSummary(device_name=snapshot.name, summary=_fallback_summary(snapshot))
 
 
 def build_ai_question(
@@ -71,35 +75,38 @@ def build_ai_question(
     if not resolved_key:
         return label
 
-    response = requests.post(
-        api_base,
-        headers={"Authorization": f"Bearer {resolved_key}"},
-        json={
-            "model": model,
-            "input": {
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "你是网络运维助手，请把字段转成友好且简洁的问题。",
-                    },
-                    {
-                        "role": "user",
-                        "content": f"字段: {label}",
-                    },
-                ]
+    try:
+        response = requests.post(
+            api_base,
+            headers={"Authorization": f"Bearer {resolved_key}"},
+            json={
+                "model": model,
+                "input": {
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "你是网络运维助手，请把字段转成友好且简洁的问题。",
+                        },
+                        {
+                            "role": "user",
+                            "content": f"字段: {label}",
+                        },
+                    ]
+                },
+                "parameters": {"temperature": 0.2},
             },
-            "parameters": {"temperature": 0.2},
-        },
-        timeout=20,
-    )
-    response.raise_for_status()
-    data = response.json()
-    output = data.get("output", {})
-    content = output.get("text")
-    if not content:
-        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-    content = str(content).strip()
-    return content or label
+            timeout=20,
+        )
+        response.raise_for_status()
+        data = response.json()
+        output = data.get("output", {})
+        content = output.get("text")
+        if not content:
+            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        content = str(content).strip()
+        return content or label
+    except RequestException:
+        return label
 
 
 def _fallback_summary(snapshot: DeviceSnapshot) -> str:
@@ -139,37 +146,40 @@ def answer_query(
         return _fallback_answer(query, snapshots)
 
     prompt = _build_query_prompt(query, snapshots)
-    response = requests.post(
-        ai.api_base,
-        headers={"Authorization": f"Bearer {resolved_key}"},
-        json={
-            "model": ai.model,
-            "input": {
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": (
-                            "你是网络运维助手。需要基于设备配置、LLDP、接口摘要回答问题。"
-                            "如果缺少数据，明确说明缺口并给出可执行的排查步骤。"
-                            "输出结构化要点，尽量中文。"
-                            "当用户请求诊断或优化时，给出根因、影响范围、建议。"
-                        ),
-                    },
-                    {"role": "user", "content": prompt},
-                ]
+    try:
+        response = requests.post(
+            ai.api_base,
+            headers={"Authorization": f"Bearer {resolved_key}"},
+            json={
+                "model": ai.model,
+                "input": {
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": (
+                                "你是网络运维助手。需要基于设备配置、LLDP、接口摘要回答问题。"
+                                "如果缺少数据，明确说明缺口并给出可执行的排查步骤。"
+                                "输出结构化要点，尽量中文。"
+                                "当用户请求诊断或优化时，给出根因、影响范围、建议。"
+                            ),
+                        },
+                        {"role": "user", "content": prompt},
+                    ]
+                },
+                "parameters": {"temperature": 0.2},
             },
-            "parameters": {"temperature": 0.2},
-        },
-        timeout=30,
-    )
-    response.raise_for_status()
-    data = response.json()
-    output = data.get("output", {})
-    content = output.get("text")
-    if not content:
-        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-    content = str(content).strip()
-    return content or _fallback_answer(query, snapshots)
+            timeout=30,
+        )
+        response.raise_for_status()
+        data = response.json()
+        output = data.get("output", {})
+        content = output.get("text")
+        if not content:
+            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        content = str(content).strip()
+        return content or _fallback_answer(query, snapshots)
+    except RequestException:
+        return _fallback_answer(query, snapshots)
 
 
 def _build_query_prompt(query: str, snapshots: Iterable[DeviceSnapshot]) -> str:

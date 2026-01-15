@@ -59,6 +59,9 @@ python -m iotmd --interactive --output output
     ```
   - 如果设备启用了分页输出，请确保未关闭 SSH 交互提示。
   - 交互模式下若认证失败，会提示重新输入账号密码。
+- AI 调用失败或提示代理错误？
+  - 请检查网络代理/SSL 配置，确保能访问 `dashscope.aliyuncs.com`。
+  - 如无法访问，将自动回退到非 AI 回答与摘要。
 
 ## 目录结构
 
