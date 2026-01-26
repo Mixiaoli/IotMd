@@ -12,7 +12,12 @@ from iotmd.collectors.huawei import collect_huawei
 from iotmd.collectors.ruijie import collect_ruijie
 from iotmd.config import Inventory, load_inventory
 from iotmd.generator import build_documents, write_documents
-from iotmd.interactive import prompt_credentials, prompt_inventory, prompt_yes_no
+from iotmd.interactive import (
+    prompt_ai_config,
+    prompt_credentials,
+    prompt_inventory,
+    prompt_yes_no,
+)
 
 
 COLLECTORS = {
@@ -52,7 +57,7 @@ def main() -> None:
 
     args = parser.parse_args()
     if args.interactive:
-        _interactive_menu(args)
+        _interactive_flow(args)
         return
 
     inventory = load_inventory(Path(args.inventory))
@@ -62,37 +67,47 @@ def main() -> None:
     _finalize_documents(args, inventory, snapshots)
 
 
-def _interactive_menu(args: argparse.Namespace) -> None:
+def _interactive_flow(args: argparse.Namespace) -> None:
     _print_welcome()
-    while True:
-        print(
-            "\n请选择功能:\n"
-            "1. 自然语言查询/诊断（持续对话）\n"
-            "2. 生成交换机文档\n"
-            "3. 退出\n"
-        )
-        choice = input("请输入选项编号: ").strip()
-        if choice == "1":
-            inventory = prompt_inventory()
-            _warn_ai_key(inventory)
-            snapshots = _collect_snapshots(args, inventory)
-            run_chat_loop(
-                ChatContext(
-                    ai=inventory.ai,
-                    snapshots=snapshots,
-                    generate_docs=lambda: _finalize_documents(args, inventory, snapshots),
-                )
+    choice = input("是否要生成交换机文档 (y/n): ").strip().lower()
+    if choice == "y":
+        inventory = prompt_inventory()
+        _warn_ai_key(inventory)
+        snapshots = _collect_snapshots(args, inventory)
+        _finalize_documents(args, inventory, snapshots)
+        run_chat_loop(
+            ChatContext(
+                ai=inventory.ai,
+                snapshots=snapshots,
+                inventory=inventory,
+                load_data=lambda: _load_data(args),
+                generate_docs=lambda inv, snaps: _finalize_documents(args, inv, snaps),
             )
-        elif choice == "2":
-            inventory = prompt_inventory()
-            _warn_ai_key(inventory)
-            snapshots = _collect_snapshots(args, inventory)
-            _finalize_documents(args, inventory, snapshots)
-        elif choice == "3":
-            print("已退出程序。")
-            break
-        else:
-            print("无效选项，请重新输入。")
+        )
+        return
+    if choice == "n" or choice == "":
+        ai = prompt_ai_config()
+        run_chat_loop(
+            ChatContext(
+                ai=ai,
+                snapshots=[],
+                inventory=None,
+                load_data=lambda: _load_data(args),
+                generate_docs=lambda inv, snaps: _finalize_documents(args, inv, snaps),
+            )
+        )
+        return
+    print("无效输入，已进入自然语言对话模式。")
+    ai = prompt_ai_config()
+    run_chat_loop(
+        ChatContext(
+            ai=ai,
+            snapshots=[],
+            inventory=None,
+            load_data=lambda: _load_data(args),
+            generate_docs=lambda inv, snaps: _finalize_documents(args, inv, snaps),
+        )
+    )
 
 
 def _collect_snapshots(
@@ -153,6 +168,13 @@ def _finalize_documents(
     bundle = build_documents(inventory, snapshots)
     write_documents(bundle, args.output)
     print(f"已生成文档到 {args.output}")
+
+
+def _load_data(args: argparse.Namespace) -> tuple[Inventory, list[DeviceSnapshot]]:
+    inventory = prompt_inventory()
+    _warn_ai_key(inventory)
+    snapshots = _collect_snapshots(args, inventory)
+    return inventory, snapshots
 
 
 def _warn_ai_key(inventory: Inventory) -> None:

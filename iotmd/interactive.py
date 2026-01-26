@@ -17,22 +17,7 @@ class InteractiveAnswers:
 
 
 def prompt_inventory() -> Inventory:
-    ai_enabled = _prompt("是否启用 AI 总结 (y/n)", default="n").lower() == "y"
-    ai_key = None
-    if ai_enabled:
-        ai_key = _prompt(
-            "DASHSCOPE_API_KEY (留空则读取环境变量)",
-            default=os.environ.get("DASHSCOPE_API_KEY", ""),
-        ) or None
-
-    ai = AiConfig(
-        enabled=ai_enabled,
-        api_base="https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation",
-        model="qwen-turbo",
-        api_key=ai_key,
-    )
-    if ai.enabled and not ai.api_key:
-        print("AI 已开启但未提供 API Key，将仅使用默认问题与摘要。")
+    ai = prompt_ai_config()
 
     site = _prompt(_ask(ai, "站点名称"), default="HQ")
     owner = _prompt(_ask(ai, "负责人"), default="NetOps")
@@ -66,6 +51,26 @@ def prompt_inventory() -> Inventory:
         ai=ai,
         devices=devices,
     )
+
+
+def prompt_ai_config() -> AiConfig:
+    ai_enabled = _prompt("是否启用 AI 总结 (y/n)", default="n").lower() == "y"
+    ai_key = None
+    if ai_enabled:
+        ai_key = _prompt(
+            "DASHSCOPE_API_KEY (留空则读取环境变量)",
+            default=os.environ.get("DASHSCOPE_API_KEY", ""),
+        ) or None
+
+    ai = AiConfig(
+        enabled=ai_enabled,
+        api_base="https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation",
+        model="qwen-turbo",
+        api_key=ai_key,
+    )
+    if ai.enabled and not ai.api_key:
+        print("AI 已开启但未提供 API Key，将仅使用默认问题与摘要。")
+    return ai
 
 
 def _prompt(label: str, default: str) -> str:

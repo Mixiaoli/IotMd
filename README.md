@@ -32,13 +32,15 @@ iotmd --inventory examples/inventory.yaml --output output
 python -m iotmd --inventory examples/inventory.yaml --output output
 ```
 
-如果希望启动后直接交互输入设备信息（IP/账号/密码），并由 AI 提示提问，请使用：
+如果希望启动后以 AI 助手身份交互，并由 AI 提示提问，请使用：
 
 ```bash
 python -m iotmd --interactive --output output
 ```
 
-交互模式启动后会提供欢迎语与选项：
+交互模式启动后会先问你是否要生成交换机文档，默认先进入对话模式，再按需加载设备信息。
+
+交互模式会提供欢迎语与选项：
 
 1. 自然语言查询/诊断（持续对话）
 2. 生成交换机文档（输出文档如下）
@@ -49,7 +51,7 @@ python -m iotmd --interactive --output output
    - 网络设计文档
 3. 退出
 
-在自然语言对话中，你可以随时输入“生成文档”触发文档输出。
+在自然语言对话中，你可以随时输入“生成文档”触发文档输出，或输入“加载设备”再补充设备信息。
 
 ## 常见问题
 

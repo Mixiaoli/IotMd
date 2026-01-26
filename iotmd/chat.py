@@ -5,14 +5,16 @@ from typing import Callable, Iterable
 
 from iotmd.ai import answer_query
 from iotmd.collectors import DeviceSnapshot
-from iotmd.config import AiConfig
+from iotmd.config import AiConfig, Inventory
 
 
-@dataclass(frozen=True)
+@dataclass
 class ChatContext:
     ai: AiConfig
     snapshots: list[DeviceSnapshot]
-    generate_docs: Callable[[], None] | None = None
+    inventory: Inventory | None = None
+    load_data: Callable[[], tuple[Inventory, list[DeviceSnapshot]]] | None = None
+    generate_docs: Callable[[Inventory, list[DeviceSnapshot]], None] | None = None
 
 
 def run_chat_loop(context: ChatContext) -> None:
@@ -25,10 +27,10 @@ def run_chat_loop(context: ChatContext) -> None:
             print("已退出自然语言交互。")
             break
         if query in {"生成文档", "生成交换机文档", "生成网络文档"}:
-            if context.generate_docs:
-                context.generate_docs()
-            else:
-                print("当前未配置文档生成入口。")
+            _handle_generate_docs(context)
+            continue
+        if query in {"加载设备", "输入设备", "导入设备"}:
+            _handle_load_devices(context)
             continue
         if query.lower() in {"help", "帮助"}:
             _print_help()
@@ -62,6 +64,33 @@ def _print_help() -> None:
     print(
         "\n可用指令:\n"
         "- 生成文档 / 生成交换机文档\n"
+        "- 加载设备 / 输入设备\n"
         "- 帮助\n"
         "- exit 退出\n"
     )
+
+
+def _handle_load_devices(context: ChatContext) -> None:
+    if not context.load_data:
+        print("当前未配置设备加载入口。")
+        return
+    inventory, snapshots = context.load_data()
+    context.inventory = inventory
+    context.ai = inventory.ai
+    context.snapshots = snapshots
+    if snapshots:
+        print("已加载设备数据，可以继续提问或生成文档。")
+    else:
+        print("未采集到设备数据。")
+
+
+def _handle_generate_docs(context: ChatContext) -> None:
+    if not context.generate_docs or not context.load_data:
+        print("当前未配置文档生成入口。")
+        return
+    if not context.snapshots or not context.inventory:
+        inventory, snapshots = context.load_data()
+        context.inventory = inventory
+        context.ai = inventory.ai
+        context.snapshots = snapshots
+    context.generate_docs(context.inventory, context.snapshots)
