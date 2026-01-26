@@ -1,19 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import os
 
 from iotmd.ai import build_ai_question
 from iotmd.config import AiConfig, DeviceConfig, Inventory
-
-
-@dataclass(frozen=True)
-class InteractiveAnswers:
-    site: str
-    contacts: dict[str, str]
-    devices: list[DeviceConfig]
-    ai: AiConfig
 
 
 def prompt_inventory() -> Inventory:
@@ -54,22 +44,21 @@ def prompt_inventory() -> Inventory:
 
 
 def prompt_ai_config() -> AiConfig:
-    ai_enabled = _prompt("是否启用 AI 总结 (y/n)", default="n").lower() == "y"
-    ai_key = None
-    if ai_enabled:
+    ai_key = os.environ.get("DASHSCOPE_API_KEY")
+    if not ai_key:
         ai_key = _prompt(
             "DASHSCOPE_API_KEY (留空则读取环境变量)",
-            default=os.environ.get("DASHSCOPE_API_KEY", ""),
+            default="",
         ) or None
 
     ai = AiConfig(
-        enabled=ai_enabled,
+        enabled=True,
         api_base="https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation",
         model="qwen-turbo",
         api_key=ai_key,
     )
-    if ai.enabled and not ai.api_key:
-        print("AI 已开启但未提供 API Key，将仅使用默认问题与摘要。")
+    if not ai.api_key:
+        print("未检测到 DASHSCOPE_API_KEY，将仅使用默认问题与摘要。")
     return ai
 
 

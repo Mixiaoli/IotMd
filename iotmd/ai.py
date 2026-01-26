@@ -118,7 +118,8 @@ def _fallback_summary(snapshot: DeviceSnapshot) -> str:
 
 def _build_prompt(snapshot: DeviceSnapshot) -> str:
     return (
-        "请根据以下信息，生成一段用于运维文档的设备摘要：\n"
+        "请根据以下信息，生成用于运维文档的设备摘要，包含：\n"
+        "1) 设备角色与用途 2) 接口/链路概览 3) 关键风险与安全建议\n"
         f"设备名称: {snapshot.name}\n"
         f"厂商: {snapshot.vendor}\n"
         "接口概览: \n"
@@ -126,6 +127,49 @@ def _build_prompt(snapshot: DeviceSnapshot) -> str:
         "配置片段: \n"
         f"{snapshot.config[:2000]}\n"
     )
+
+
+def generate_network_advice(
+    snapshots: Iterable[DeviceSnapshot],
+    ai: AiConfig,
+) -> str:
+    resolved_key = resolve_api_key(ai.api_key)
+    if not resolved_key:
+        return _fallback_network_advice()
+
+    prompt = _build_network_advice_prompt(snapshots)
+    try:
+        response = requests.post(
+            ai.api_base,
+            headers={"Authorization": f"Bearer {resolved_key}"},
+            json={
+                "model": ai.model,
+                "input": {
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": (
+                                "你是网络安全与运维专家，请输出可执行的安全建议与优化建议。"
+                                "尽量结合现有配置与接口信息。"
+                            ),
+                        },
+                        {"role": "user", "content": prompt},
+                    ]
+                },
+                "parameters": {"temperature": 0.2},
+            },
+            timeout=30,
+        )
+        response.raise_for_status()
+        data = response.json()
+        output = data.get("output", {})
+        content = output.get("text")
+        if not content:
+            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        content = str(content).strip()
+        return content or _fallback_network_advice()
+    except RequestException:
+        return _fallback_network_advice()
 
 
 def resolve_api_key(api_key: str | None) -> str | None:
@@ -234,3 +278,36 @@ def _fallback_answer(query: str, snapshots: Iterable[DeviceSnapshot]) -> str:
             "如可用，开启 BPDU Guard 与环路保护。"
         )
     return "需要更完整的监控/日志数据才能回答该问题。"
+
+
+def _build_network_advice_prompt(snapshots: Iterable[DeviceSnapshot]) -> str:
+    parts = [
+        "请输出该网络的安全建议与优化建议，包含：",
+        "- 安全基线（弱口令、ACL、管理面访问）",
+        "- 稳定性（链路冗余、STP/BPDU Guard）",
+        "- 可观测性（日志、告警、监控）",
+        "- 性能与容量（QoS、带宽）",
+        "",
+        "已采集设备信息:",
+    ]
+    for snapshot in snapshots:
+        parts.append(f"设备: {snapshot.name} ({snapshot.vendor})")
+        if snapshot.interfaces.strip():
+            parts.append("接口概览:")
+            parts.append(snapshot.interfaces.strip())
+        if snapshot.lldp.strip():
+            parts.append("LLDP 邻居:")
+            parts.append(snapshot.lldp.strip())
+        if snapshot.config.strip():
+            parts.append("配置片段:")
+            parts.append(snapshot.config[:1200])
+        parts.append("")
+    return "\n".join(parts)
+
+
+def _fallback_network_advice() -> str:
+    return (
+        "安全建议: 启用强口令与分级账号、限制管理面访问、开启日志审计与告警。"
+        "网络建议: 检查链路冗余与 STP 保护，关键链路启用 BPDU Guard，"
+        "为办公网/访客网配置 QoS 与访问控制，接入 SNMP/Telemetry 进行可观测性建设。"
+    )

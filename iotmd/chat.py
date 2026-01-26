@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Iterable
+from typing import Callable
 
 from iotmd.ai import answer_query
 from iotmd.collectors import DeviceSnapshot
@@ -37,20 +37,6 @@ def run_chat_loop(context: ChatContext) -> None:
             continue
         response = answer_query(query, context.snapshots, context.ai)
         print(f"\n{response}")
-
-
-def format_snapshot_summary(snapshots: Iterable[DeviceSnapshot]) -> str:
-    lines = []
-    for snapshot in snapshots:
-        lines.append(f"设备: {snapshot.name} ({snapshot.vendor})")
-        if snapshot.interfaces.strip():
-            lines.append("接口概览:")
-            lines.append(snapshot.interfaces.strip())
-        if snapshot.lldp.strip():
-            lines.append("LLDP 邻居:")
-            lines.append(snapshot.lldp.strip())
-        lines.append("")
-    return "\n".join(lines)
 
 
 def _print_welcome() -> None:

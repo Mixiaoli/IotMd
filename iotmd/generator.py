@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from iotmd.ai import AiSummary, summarize_device
+from iotmd.ai import AiSummary, generate_network_advice, summarize_device
 from iotmd.collectors import DeviceSnapshot
 from iotmd.config import Inventory
 from iotmd.topology import build_topology, render_mermaid
@@ -12,13 +12,7 @@ from iotmd.topology import build_topology, render_mermaid
 
 @dataclass(frozen=True)
 class DocumentBundle:
-    overview: str
-    topology: str
-    devices: str
-    ip_allocation: str
-    device_inventory: str
-    config_backup: str
-    design: str
+    summary: str
 
 
 def build_documents(inventory: Inventory, snapshots: list[DeviceSnapshot]) -> DocumentBundle:
@@ -33,39 +27,17 @@ def build_documents(inventory: Inventory, snapshots: list[DeviceSnapshot]) -> Do
         for snapshot in snapshots
     ]
 
-    overview = _render_overview(inventory, summaries)
     topology_links = build_topology(snapshots)
-    topology = _render_topology(topology_links)
-    devices = _render_device_details(snapshots, summaries)
-    ip_allocation = _render_ip_allocation(inventory, snapshots)
-    device_inventory = _render_device_inventory(inventory, snapshots)
-    config_backup = _render_config_backup(snapshots)
-    design = _render_design_doc(inventory, snapshots, topology_links)
+    summary = _render_summary(inventory, summaries, snapshots, topology_links)
 
-    return DocumentBundle(
-        overview=overview,
-        topology=topology,
-        devices=devices,
-        ip_allocation=ip_allocation,
-        device_inventory=device_inventory,
-        config_backup=config_backup,
-        design=design,
-    )
+    return DocumentBundle(summary=summary)
 
 
 def write_documents(bundle: DocumentBundle, output_dir: str | Path) -> None:
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    (output_path / "overview.md").write_text(bundle.overview, encoding="utf-8")
-    (output_path / "topology.md").write_text(bundle.topology, encoding="utf-8")
-    (output_path / "devices.md").write_text(bundle.devices, encoding="utf-8")
-    (output_path / "ip_allocation.md").write_text(bundle.ip_allocation, encoding="utf-8")
-    (output_path / "device_inventory.md").write_text(
-        bundle.device_inventory, encoding="utf-8"
-    )
-    (output_path / "config_backup.md").write_text(bundle.config_backup, encoding="utf-8")
-    (output_path / "network_design.md").write_text(bundle.design, encoding="utf-8")
+    (output_path / "summary.md").write_text(bundle.summary, encoding="utf-8")
 
 
 def _render_overview(inventory: Inventory, summaries: list[AiSummary]) -> str:
@@ -193,29 +165,31 @@ def _render_config_backup(snapshots: list[DeviceSnapshot]) -> str:
     return "\n".join(sections)
 
 
-def _render_design_doc(
+def _render_summary(
     inventory: Inventory,
+    summaries: list[AiSummary],
     snapshots: list[DeviceSnapshot],
     topology_links: list,
 ) -> str:
-    mermaid = render_mermaid(topology_links)
+    overview = _render_overview(inventory, summaries)
+    topology = _render_topology(topology_links)
+    devices = _render_device_details(snapshots, summaries)
+    ip_allocation = _render_ip_allocation(inventory, snapshots)
+    device_inventory = _render_device_inventory(inventory, snapshots)
+    config_backup = _render_config_backup(snapshots)
+    advice = generate_network_advice(snapshots, inventory.ai)
+
     return "\n".join(
         [
-            f"# {inventory.site} 网络设计文档",
+            overview,
+            topology,
+            ip_allocation,
+            device_inventory,
+            "# 安全与网络建议",
             "",
-            "## 设计概览",
-            "本节基于已采集的设备信息生成设计草案，请补充业务需求与带宽规划。",
+            advice,
             "",
-            "## 拓扑结构",
-            "```mermaid",
-            mermaid,
-            "```",
-            "",
-            "## 设备角色",
-            *[
-                f"- {snapshot.name} ({snapshot.vendor}): 角色待补充"
-                for snapshot in snapshots
-            ],
-            "",
+            devices,
+            config_backup,
         ]
     )

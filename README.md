@@ -32,13 +32,13 @@ iotmd --inventory examples/inventory.yaml --output output
 python -m iotmd --inventory examples/inventory.yaml --output output
 ```
 
-如果希望启动后以 AI 助手身份交互，并由 AI 提示提问，请使用：
+如果希望启动后以 AI 助手身份交互，并由 AI 提示提问（默认开启 AI，总结与建议会自动生成），请使用：
 
 ```bash
 python -m iotmd --interactive --output output
 ```
 
-交互模式启动后会先问你是否要生成交换机文档，默认先进入对话模式，再按需加载设备信息。
+交互模式启动后会先询问是否要生成交换机文档，默认先进入对话模式，再按需加载设备信息。若已配置 `DASHSCOPE_API_KEY` 环境变量，将不会再提示输入。
 
 交互模式会提供欢迎语与选项：
 
@@ -48,7 +48,7 @@ python -m iotmd --interactive --output output
    - IP 地址分配表
    - 设备清单（含序列号、维保信息占位）
    - 配置备份文档
-   - 网络设计文档
+   - 安全与网络建议
 3. 退出
 
 在自然语言对话中，你可以随时输入“生成文档”触发文档输出，或输入“加载设备”再补充设备信息。
@@ -72,13 +72,7 @@ python -m iotmd --interactive --output output
 - `iotmd/` 核心代码
 - `examples/` 配置示例
 - `output/` 生成的文档输出目录
-  - `overview.md` 总览
-  - `topology.md` 网络拓扑图
-  - `ip_allocation.md` IP 地址分配表
-  - `device_inventory.md` 设备清单
-  - `config_backup.md` 配置备份文档
-  - `network_design.md` 网络设计文档
-  - `devices.md` 设备详细信息
+  - `summary.md` 汇总文档（含拓扑、IP 表、设备清单、配置备份与建议）
 
 ## AI 总结
 
