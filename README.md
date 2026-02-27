@@ -90,3 +90,18 @@ ai:
 ```
 
 支持环境变量 `DASHSCOPE_API_KEY`，或在交互模式中输入 API Key。
+
+
+## Web 页面（对话 + 文档下载）
+
+启动命令：
+
+```bash
+python -m iotmd --web --host 127.0.0.1 --port 8765 --output output
+```
+
+打开浏览器访问 `http://127.0.0.1:8765`，可在页面内：
+
+1. 粘贴 `inventory.yaml` 并点击“加载并采集”
+2. 进行 AI 对话
+3. 点击“生成文档”，并下载 `summary.md`

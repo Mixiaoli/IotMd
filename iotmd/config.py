@@ -3,8 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+import importlib
+import importlib.util
 
-import yaml
+if importlib.util.find_spec("yaml") is not None:
+    yaml = importlib.import_module("yaml")
+else:
+    yaml = None
 
 
 @dataclass(frozen=True)
@@ -44,6 +49,8 @@ class Inventory:
 
 
 def load_inventory(path: str | Path) -> Inventory:
+    if yaml is None:
+        raise RuntimeError("缺少 pyyaml 依赖，请先安装 pyyaml")
     data: dict[str, Any]
     with open(path, "r", encoding="utf-8") as handle:
         data = yaml.safe_load(handle)

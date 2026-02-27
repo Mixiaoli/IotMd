@@ -1,14 +1,26 @@
 from __future__ import annotations
 
+import importlib
+import importlib.util
 import os
 from dataclasses import dataclass
 from typing import Iterable
 
-import requests
-from requests.exceptions import RequestException
+if importlib.util.find_spec("requests") is not None:
+    requests = importlib.import_module("requests")
+    RequestException = importlib.import_module("requests.exceptions").RequestException
+else:
+    requests = None
+    RequestException = Exception
 
 from iotmd.collectors import DeviceSnapshot
 from iotmd.config import AiConfig
+
+
+def _requests_post(*args, **kwargs):
+    if requests is None:
+        raise RequestException("requests is not installed")
+    return requests.post(*args, **kwargs)
 
 
 @dataclass(frozen=True)
@@ -32,7 +44,7 @@ def summarize_device(
         return AiSummary(device_name=snapshot.name, summary=_fallback_summary(snapshot))
 
     try:
-        response = requests.post(
+        response = _requests_post(
             api_base,
             headers={"Authorization": f"Bearer {resolved_key}"},
             json={
@@ -76,7 +88,7 @@ def build_ai_question(
         return label
 
     try:
-        response = requests.post(
+        response = _requests_post(
             api_base,
             headers={"Authorization": f"Bearer {resolved_key}"},
             json={
@@ -139,7 +151,7 @@ def generate_network_advice(
 
     prompt = _build_network_advice_prompt(snapshots)
     try:
-        response = requests.post(
+        response = _requests_post(
             ai.api_base,
             headers={"Authorization": f"Bearer {resolved_key}"},
             json={
@@ -191,7 +203,7 @@ def answer_query(
 
     prompt = _build_query_prompt(query, snapshots)
     try:
-        response = requests.post(
+        response = _requests_post(
             ai.api_base,
             headers={"Authorization": f"Bearer {resolved_key}"},
             json={
