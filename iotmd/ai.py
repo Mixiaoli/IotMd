@@ -249,8 +249,18 @@ def _build_query_prompt(query: str, snapshots: Iterable[DeviceSnapshot]) -> str:
 
 
 def _fallback_answer(query: str, snapshots: Iterable[DeviceSnapshot]) -> str:
-    if not list(snapshots):
-        return "尚未采集到设备数据，无法回答该问题。请先采集设备配置与拓扑信息。"
+    snapshot_list = list(snapshots)
+    if not snapshot_list:
+        lowered = query.lower()
+        if lowered in {"hi", "hello", "你好", "您好"}:
+            return (
+                "你好，我在。即使暂未采集交换机数据，也可以先回答通用运维问题。"
+                "如果你想结合现网信息分析，可以输入“加载设备”重新采集。"
+            )
+        return (
+            "当前还没有设备快照，我可以先给你通用排查建议。"
+            "如果你希望基于交换机配置做精准分析，请输入“加载设备”重新采集。"
+        )
     lowered = query.lower()
     if "cpu" in lowered or "利用率" in query:
         return (

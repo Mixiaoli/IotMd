@@ -145,12 +145,14 @@ def _collect_snapshots(
                         default_username=username,
                     )
                     continue
-                if not args.continue_on_error:
+                if not args.continue_on_error and not args.interactive:
                     raise
                 break
             except Exception as exc:  # noqa: BLE001
                 print(f"采集失败 {device.name}: {exc}")
-                if not args.continue_on_error:
+                if args.interactive and prompt_yes_no("是否重试采集当前设备 (y/n)", default="y"):
+                    continue
+                if not args.continue_on_error and not args.interactive:
                     raise
                 break
 
