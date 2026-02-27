@@ -60,6 +60,21 @@ def _render_overview(inventory: Inventory, summaries: list[AiSummary]) -> str:
     for summary in summaries:
         lines.append(f"- **{summary.device_name}**: {summary.summary}")
 
+    if inventory.subnet_cidr and inventory.subnet_hosts:
+        total = len(inventory.subnet_hosts)
+        online = len([item for item in inventory.subnet_hosts if item.online])
+        ssh_ok = len([item for item in inventory.subnet_hosts if item.ssh_open])
+        lines.extend(
+            [
+                "",
+                "## 网段扫描统计",
+                f"- 网段: {inventory.subnet_cidr}",
+                f"- 主机总数: {total}",
+                f"- Ping 可达: {online}",
+                f"- SSH 可达: {ssh_ok}",
+            ]
+        )
+
     return "\n".join(lines) + "\n"
 
 
@@ -150,22 +165,68 @@ def _render_device_inventory(
     inventory: Inventory, snapshots: list[DeviceSnapshot], summaries: list[AiSummary]
 ) -> str:
     rows = [
-        "| 设备名称 | 设备厂商 | 设备型号 | 管理地址 | 用户名 | SN | 软件版本 | AI 优化建议 |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| 设备名称 | 设备厂商 | 设备型号 | 管理地址 | 管理方式 | 用户名 | SN | 软件版本 | AI 优化建议 | 备注 |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     device_map = {device.name: device for device in inventory.devices}
-    summary_map = {summary.device_name: summary.summary for summary in summaries}
-
+    host_device_map = {device.host: device for device in inventory.devices}
+    host_snapshot_map: dict[str, DeviceSnapshot] = {}
     for snapshot in snapshots:
         device = device_map.get(snapshot.name)
-        facts = _extract_device_facts(snapshot)
-        host = device.host if device else "-"
-        username = device.username if device else "-"
-        advice = summary_map.get(snapshot.name, "-").replace("\n", " ")
-        rows.append(
-            f"| {snapshot.name} | {snapshot.vendor} | {facts.model} | {host} | {username} | "
-            f"{facts.serial_number} | {facts.software_version} | {advice} |"
-        )
+        if device:
+            host_snapshot_map[device.host] = snapshot
+
+    summary_map = {summary.device_name: summary.summary for summary in summaries}
+
+    if inventory.subnet_hosts:
+        used_hosts: set[str] = set()
+        for host_item in inventory.subnet_hosts:
+            host = host_item.host
+            snapshot = host_snapshot_map.get(host)
+            if snapshot:
+                used_hosts.add(host)
+                device = host_device_map.get(host)
+                facts = _extract_device_facts(snapshot)
+                advice = summary_map.get(snapshot.name, "-").replace("\n", " ")
+                rows.append(
+                    f"| {snapshot.name} | {snapshot.vendor} | {facts.model} | {host} | ssh | {device.username if device else '-'} | "
+                    f"{facts.serial_number} | {facts.software_version} | {advice} | 已采集 |"
+                )
+            elif not host_item.online:
+                rows.append(
+                    f"| - | - | - | {host} | ping | - | - | - | - | {host_item.remark or '预留（Ping 不通）'} |"
+                )
+            elif not host_item.ssh_open:
+                rows.append(
+                    f"| - | - | - | {host} | ping | - | - | - | - | {host_item.remark or 'Ping 通但 SSH 不可达'} |"
+                )
+            else:
+                rows.append(
+                    f"| - | - | - | {host} | ssh | - | - | - | - | SSH 可达但采集失败（检查账号密码/命令权限） |"
+                )
+
+        for snapshot in snapshots:
+            device = device_map.get(snapshot.name)
+            if not device or device.host in used_hosts:
+                continue
+            facts = _extract_device_facts(snapshot)
+            advice = summary_map.get(snapshot.name, "-").replace("\n", " ")
+            rows.append(
+                f"| {snapshot.name} | {snapshot.vendor} | {facts.model} | {device.host} | ssh | {device.username} | "
+                f"{facts.serial_number} | {facts.software_version} | {advice} | 已采集 |"
+            )
+    else:
+        for snapshot in snapshots:
+            device = device_map.get(snapshot.name)
+            facts = _extract_device_facts(snapshot)
+            host = device.host if device else "-"
+            username = device.username if device else "-"
+            advice = summary_map.get(snapshot.name, "-").replace("\n", " ")
+            rows.append(
+                f"| {snapshot.name} | {snapshot.vendor} | {facts.model} | {host} | ssh | {username} | "
+                f"{facts.serial_number} | {facts.software_version} | {advice} | 已采集 |"
+            )
+
     return "\n".join(
         [
             f"# {inventory.site} 设备资产清单（表格）",
@@ -233,6 +294,8 @@ def _extract_device_facts(snapshot: DeviceSnapshot) -> DeviceFacts:
                 r"(?im)^\s*Device\s+model\s*:\s*(.+)$",
                 r"(?im)^\s*HUAWEI\s+(\S+)",
                 r"(?im)^\s*Ruijie\s+(\S+)",
+                r"(?im)^\s*(LS-\S+)",
+                r"(?im)^\s*(S\d+\S*)",
                 r"(?im)^\s*Model\s*:\s*(.+)$",
             ],
         ),
@@ -241,12 +304,14 @@ def _extract_device_facts(snapshot: DeviceSnapshot) -> DeviceFacts:
             [
                 r"(?im)^\s*ESN\s*:\s*(\S+)",
                 r"(?im)^\s*SN\s*:\s*(\S+)",
+                r"(?im)^\s*DEVICE_SERIAL_NUMBER\s*:\s*(\S+)",
                 r"(?im)^\s*Serial(?:\s+Number)?\s*[:=]\s*(\S+)",
             ],
         ),
         software_version=_extract_with_patterns(
             source,
             [
+                r"(?im)^\s*Comware\s+Software.*?Version\s+([^,\s]+,\s*Release\s+\S+)",
                 r"(?im)^\s*VRP\s*\(R\)\s*software.*?Version\s*([^,\n]+(?:,[^\n]+)?)",
                 r"(?im)^\s*Software\s+Version\s*[:=]\s*(.+)$",
                 r"(?im)^\s*Version\s*[:=]\s*(.+)$",

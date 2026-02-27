@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass
 
 import paramiko
+
+
+logging.getLogger("paramiko.transport").setLevel(logging.CRITICAL)
 
 
 @dataclass(frozen=True)
@@ -36,45 +40,74 @@ def run_commands(
     )
 
     results: list[CommandResult] = []
+    shell: paramiko.Channel | None = None
     try:
-        with client.invoke_shell() as shell:
-            shell.settimeout(timeout)
-            time.sleep(0.5)
+        shell = client.invoke_shell(width=240, height=1000)
+        shell.settimeout(timeout)
+        time.sleep(0.8)
+        _drain(shell)
+
+        for command in pre_commands:
+            shell.send(f"{command}\n")
+            time.sleep(0.6)
             _drain(shell)
 
-            for command in pre_commands:
-                shell.send(f"{command}\n")
-                time.sleep(0.4)
-                _drain(shell)
-
-            for command in commands:
-                shell.send(f"{command}\n")
-                time.sleep(0.5)
-                output = _read_until_prompt(shell, timeout=timeout)
-                results.append(CommandResult(command=command, output=output))
+        for command in commands:
+            shell.send(f"{command}\n")
+            output = _read_until_stable(shell, timeout=timeout)
+            results.append(CommandResult(command=command, output=output))
     finally:
+        if shell is not None:
+            try:
+                shell.close()
+            except Exception:
+                pass
         client.close()
 
     return results
 
 
 def _drain(shell: paramiko.Channel) -> None:
-    while shell.recv_ready():
-        shell.recv(65535)
+    while True:
+        try:
+            if not shell.recv_ready():
+                return
+            shell.recv(65535)
+        except Exception:
+            return
 
 
-def _read_until_prompt(
+def _read_until_stable(
     shell: paramiko.Channel,
-    pause: float = 0.3,
+    pause: float = 0.35,
     timeout: int = 15,
 ) -> str:
-    buffer = []
+    buffer: list[str] = []
     deadline = time.time() + timeout
+    stable_rounds = 0
+
     while time.time() < deadline:
         time.sleep(pause)
-        while shell.recv_ready():
-            buffer.append(shell.recv(65535).decode("utf-8", errors="ignore"))
-            time.sleep(pause)
-        if not shell.recv_ready():
+        chunk_found = False
+        while True:
+            try:
+                if not shell.recv_ready():
+                    break
+                data = shell.recv(65535)
+            except Exception:
+                return "".join(buffer)
+
+            if not data:
+                return "".join(buffer)
+            chunk_found = True
+            buffer.append(data.decode("utf-8", errors="ignore"))
+
+        if chunk_found:
+            stable_rounds = 0
+        else:
+            stable_rounds += 1
+
+        if stable_rounds >= 2:
             break
+
     return "".join(buffer)

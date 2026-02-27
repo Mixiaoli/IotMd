@@ -3,8 +3,8 @@ from __future__ import annotations
 import os
 
 from iotmd.ai import build_ai_question
-from iotmd.config import AiConfig, DeviceConfig, Inventory
-from iotmd.discovery import discover_ssh_hosts
+from iotmd.config import AiConfig, DeviceConfig, Inventory, SubnetHost
+from iotmd.discovery import scan_subnet
 
 
 def prompt_inventory() -> Inventory:
@@ -16,8 +16,10 @@ def prompt_inventory() -> Inventory:
     email = _prompt(_ask(ai, "联系邮箱"), default="")
 
     devices: list[DeviceConfig]
+    subnet_cidr: str | None = None
+    subnet_hosts: list[SubnetHost] = []
     if prompt_yes_no("是否按网段自动发现设备 (y/n)", default="n"):
-        devices = _prompt_discovered_devices(ai)
+        devices, subnet_cidr, subnet_hosts = _prompt_discovered_devices(ai)
     else:
         devices = _prompt_manual_devices(ai)
 
@@ -26,6 +28,8 @@ def prompt_inventory() -> Inventory:
         contacts={"owner": owner, "phone": phone, "email": email},
         ai=ai,
         devices=devices,
+        subnet_cidr=subnet_cidr,
+        subnet_hosts=subnet_hosts,
     )
 
 
@@ -53,34 +57,33 @@ def _prompt_manual_devices(ai: AiConfig) -> list[DeviceConfig]:
     return devices
 
 
-def _prompt_discovered_devices(ai: AiConfig) -> list[DeviceConfig]:
+def _prompt_discovered_devices(ai: AiConfig) -> tuple[list[DeviceConfig], str, list[SubnetHost]]:
     cidr = _prompt(_ask(ai, "网段 CIDR"), default="10.133.12.0/24")
     vendor = _prompt(_ask(ai, "发现设备厂商 (huawei/ruijie)"), default="huawei").lower()
     port = int(_prompt(_ask(ai, "SSH 端口"), default="22"))
-    timeout = float(_prompt(_ask(ai, "端口探测超时(秒)"), default="0.6"))
+    timeout = float(_prompt(_ask(ai, "Ping/端口探测超时(秒)"), default="0.8"))
     prefix = _prompt(_ask(ai, "设备名称前缀"), default="auto-device")
     username, password = prompt_credentials(ai, device_name="批量发现设备", default_username="admin")
 
-    print(f"开始扫描网段 {cidr}，探测端口 {port} ...")
-    hosts = discover_ssh_hosts(cidr=cidr, port=port, timeout=timeout)
-    if not hosts:
-        print("未发现可连接的 SSH 设备，将返回空设备列表。")
-        return []
+    print(f"开始扫描网段 {cidr} ...")
+    subnet_hosts = scan_subnet(cidr=cidr, ssh_port=port, timeout=timeout)
+    online = [item for item in subnet_hosts if item.online]
+    ssh_ok = [item for item in subnet_hosts if item.ssh_open]
+    print(f"扫描完成，总计 {len(subnet_hosts)} 个IP，Ping 通 {len(online)} 个，SSH 可达 {len(ssh_ok)} 个")
 
-    print(f"发现 {len(hosts)} 台可连接设备：{', '.join(hosts)}")
     devices: list[DeviceConfig] = []
-    for index, host in enumerate(hosts, start=1):
+    for index, item in enumerate(ssh_ok, start=1):
         devices.append(
             DeviceConfig(
                 name=f"{prefix}-{index}",
                 vendor=vendor,
-                host=host,
+                host=item.host,
                 port=port,
                 username=username,
                 password=password,
             )
         )
-    return devices
+    return devices, cidr, subnet_hosts
 
 
 def prompt_ai_config() -> AiConfig:

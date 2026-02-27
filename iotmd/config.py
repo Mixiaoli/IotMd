@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -26,11 +26,21 @@ class DeviceConfig:
 
 
 @dataclass(frozen=True)
+class SubnetHost:
+    host: str
+    online: bool
+    ssh_open: bool
+    remark: str = ""
+
+
+@dataclass(frozen=True)
 class Inventory:
     site: str
     contacts: dict[str, str]
     ai: AiConfig
     devices: list[DeviceConfig]
+    subnet_cidr: str | None = None
+    subnet_hosts: list[SubnetHost] = field(default_factory=list)
 
 
 def load_inventory(path: str | Path) -> Inventory:
