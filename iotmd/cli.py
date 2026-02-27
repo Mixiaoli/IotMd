@@ -12,12 +12,7 @@ from iotmd.collectors.huawei import collect_huawei
 from iotmd.collectors.ruijie import collect_ruijie
 from iotmd.config import Inventory, load_inventory
 from iotmd.generator import build_documents, write_documents
-from iotmd.interactive import (
-    prompt_ai_config,
-    prompt_credentials,
-    prompt_inventory,
-    prompt_yes_no,
-)
+from iotmd.interactive import prompt_ai_config, prompt_inventory
 
 
 COLLECTORS = {
@@ -138,20 +133,17 @@ def _collect_snapshots(
                 break
             except AuthenticationException as exc:
                 print(f"认证失败 {device.name}: {exc}")
-                if args.interactive and prompt_yes_no("是否重新输入账号密码 (y/n)", default="y"):
-                    username, password = prompt_credentials(
-                        inventory.ai,
-                        device_name=device.name,
-                        default_username=username,
-                    )
-                    continue
+                if args.interactive:
+                    print(f"已跳过 {device.name}，继续采集下一台设备。")
+                    break
                 if not args.continue_on_error and not args.interactive:
                     raise
                 break
             except Exception as exc:  # noqa: BLE001
                 print(f"采集失败 {device.name}: {exc}")
-                if args.interactive and prompt_yes_no("是否重试采集当前设备 (y/n)", default="y"):
-                    continue
+                if args.interactive:
+                    print(f"已跳过 {device.name}，继续采集下一台设备。")
+                    break
                 if not args.continue_on_error and not args.interactive:
                     raise
                 break
