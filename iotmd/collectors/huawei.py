@@ -7,8 +7,9 @@ from iotmd.ssh import run_commands
 COMMANDS = {
     "disable_paging": "screen-length 0 temporary",
     "config": "display current-configuration",
-    "lldp": "display lldp neighbor",
+    "lldp": "display lldp neighbor brief",
     "interfaces": "display interface brief",
+    "version": "display version",
 }
 
 
@@ -30,6 +31,7 @@ def collect_huawei(
             COMMANDS["config"],
             COMMANDS["lldp"],
             COMMANDS["interfaces"],
+            COMMANDS["version"],
         ],
         timeout=timeout,
     )
@@ -41,4 +43,5 @@ def collect_huawei(
         config=outputs.get(COMMANDS["config"], ""),
         lldp=outputs.get(COMMANDS["lldp"], ""),
         interfaces=outputs.get(COMMANDS["interfaces"], ""),
+        version=outputs.get(COMMANDS["version"], ""),
     )

@@ -10,3 +10,4 @@ class DeviceSnapshot:
     config: str
     lldp: str
     interfaces: str
+    version: str = ""

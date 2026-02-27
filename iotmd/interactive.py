@@ -4,6 +4,7 @@ import os
 
 from iotmd.ai import build_ai_question
 from iotmd.config import AiConfig, DeviceConfig, Inventory
+from iotmd.discovery import discover_ssh_hosts
 
 
 def prompt_inventory() -> Inventory:
@@ -14,6 +15,21 @@ def prompt_inventory() -> Inventory:
     phone = _prompt(_ask(ai, "联系电话"), default="")
     email = _prompt(_ask(ai, "联系邮箱"), default="")
 
+    devices: list[DeviceConfig]
+    if prompt_yes_no("是否按网段自动发现设备 (y/n)", default="n"):
+        devices = _prompt_discovered_devices(ai)
+    else:
+        devices = _prompt_manual_devices(ai)
+
+    return Inventory(
+        site=site,
+        contacts={"owner": owner, "phone": phone, "email": email},
+        ai=ai,
+        devices=devices,
+    )
+
+
+def _prompt_manual_devices(ai: AiConfig) -> list[DeviceConfig]:
     device_count = int(_prompt(_ask(ai, "设备数量"), default="1"))
     devices: list[DeviceConfig] = []
 
@@ -34,13 +50,37 @@ def prompt_inventory() -> Inventory:
                 password=password,
             )
         )
+    return devices
 
-    return Inventory(
-        site=site,
-        contacts={"owner": owner, "phone": phone, "email": email},
-        ai=ai,
-        devices=devices,
-    )
+
+def _prompt_discovered_devices(ai: AiConfig) -> list[DeviceConfig]:
+    cidr = _prompt(_ask(ai, "网段 CIDR"), default="10.133.12.0/24")
+    vendor = _prompt(_ask(ai, "发现设备厂商 (huawei/ruijie)"), default="huawei").lower()
+    port = int(_prompt(_ask(ai, "SSH 端口"), default="22"))
+    timeout = float(_prompt(_ask(ai, "端口探测超时(秒)"), default="0.6"))
+    prefix = _prompt(_ask(ai, "设备名称前缀"), default="auto-device")
+    username, password = prompt_credentials(ai, device_name="批量发现设备", default_username="admin")
+
+    print(f"开始扫描网段 {cidr}，探测端口 {port} ...")
+    hosts = discover_ssh_hosts(cidr=cidr, port=port, timeout=timeout)
+    if not hosts:
+        print("未发现可连接的 SSH 设备，将返回空设备列表。")
+        return []
+
+    print(f"发现 {len(hosts)} 台可连接设备：{', '.join(hosts)}")
+    devices: list[DeviceConfig] = []
+    for index, host in enumerate(hosts, start=1):
+        devices.append(
+            DeviceConfig(
+                name=f"{prefix}-{index}",
+                vendor=vendor,
+                host=host,
+                port=port,
+                username=username,
+                password=password,
+            )
+        )
+    return devices
 
 
 def prompt_ai_config() -> AiConfig:

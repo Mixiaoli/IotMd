@@ -9,6 +9,7 @@ COMMANDS = {
     "config": "show running-config",
     "lldp": "show lldp neighbors",
     "interfaces": "show interfaces brief",
+    "version": "show version",
 }
 
 
@@ -30,6 +31,7 @@ def collect_ruijie(
             COMMANDS["config"],
             COMMANDS["lldp"],
             COMMANDS["interfaces"],
+            COMMANDS["version"],
         ],
         timeout=timeout,
     )
@@ -41,4 +43,5 @@ def collect_ruijie(
         config=outputs.get(COMMANDS["config"], ""),
         lldp=outputs.get(COMMANDS["lldp"], ""),
         interfaces=outputs.get(COMMANDS["interfaces"], ""),
+        version=outputs.get(COMMANDS["version"], ""),
     )

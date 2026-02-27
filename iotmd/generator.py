@@ -15,6 +15,13 @@ class DocumentBundle:
     summary: str
 
 
+@dataclass(frozen=True)
+class DeviceFacts:
+    model: str = "未识别"
+    serial_number: str = "未识别"
+    software_version: str = "未识别"
+
+
 def build_documents(inventory: Inventory, snapshots: list[DeviceSnapshot]) -> DocumentBundle:
     summaries = [
         summarize_device(
@@ -75,11 +82,21 @@ def _render_device_details(
     sections = ["# 设备详细信息", ""]
 
     for snapshot in snapshots:
+        facts = _extract_device_facts(snapshot)
         sections.extend(
             [
                 f"## {snapshot.name} ({snapshot.vendor})",
                 "",
                 f"摘要: {summary_map.get(snapshot.name, '')}",
+                "",
+                f"型号: {facts.model}",
+                f"SN: {facts.serial_number}",
+                f"软件版本: {facts.software_version}",
+                "",
+                "### 版本信息原始输出",
+                "```",
+                snapshot.version.strip() or "未采集",
+                "```",
                 "",
                 "### 接口概览",
                 "```",
@@ -106,7 +123,7 @@ def _render_ip_allocation(
     inventory: Inventory, snapshots: list[DeviceSnapshot]
 ) -> str:
     rows = ["| 设备 | 接口 | IP |", "| --- | --- | --- |"]
-    ip_pattern = re.compile(r"(\\d{1,3}(?:\\.\\d{1,3}){3}(?:/\\d{1,2})?)")
+    ip_pattern = re.compile(r"(\d{1,3}(?:\.\d{1,3}){3}(?:/\d{1,2})?)")
     for snapshot in snapshots:
         for line in snapshot.interfaces.splitlines():
             ips = ip_pattern.findall(line)
@@ -130,21 +147,32 @@ def _render_ip_allocation(
 
 
 def _render_device_inventory(
-    inventory: Inventory, snapshots: list[DeviceSnapshot]
+    inventory: Inventory, snapshots: list[DeviceSnapshot], summaries: list[AiSummary]
 ) -> str:
-    rows = ["| 设备 | 厂商 | 管理地址 | 序列号 | 维保信息 |", "| --- | --- | --- | --- | --- |"]
+    rows = [
+        "| 设备名称 | 设备厂商 | 设备型号 | 管理地址 | 用户名 | SN | 软件版本 | AI 优化建议 |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    ]
     device_map = {device.name: device for device in inventory.devices}
+    summary_map = {summary.device_name: summary.summary for summary in summaries}
+
     for snapshot in snapshots:
         device = device_map.get(snapshot.name)
+        facts = _extract_device_facts(snapshot)
         host = device.host if device else "-"
-        rows.append(f"| {snapshot.name} | {snapshot.vendor} | {host} | 未采集 | 未采集 |")
+        username = device.username if device else "-"
+        advice = summary_map.get(snapshot.name, "-").replace("\n", " ")
+        rows.append(
+            f"| {snapshot.name} | {snapshot.vendor} | {facts.model} | {host} | {username} | "
+            f"{facts.serial_number} | {facts.software_version} | {advice} |"
+        )
     return "\n".join(
         [
-            f"# {inventory.site} 设备清单",
+            f"# {inventory.site} 设备资产清单（表格）",
             "",
             *rows,
             "",
-            "> 序列号与维保信息需通过设备 SN/资产系统补充。",
+            "> 说明：密码不写入文档，避免敏感信息泄漏。",
             "",
         ]
     )
@@ -175,7 +203,7 @@ def _render_summary(
     topology = _render_topology(topology_links)
     devices = _render_device_details(snapshots, summaries)
     ip_allocation = _render_ip_allocation(inventory, snapshots)
-    device_inventory = _render_device_inventory(inventory, snapshots)
+    device_inventory = _render_device_inventory(inventory, snapshots, summaries)
     config_backup = _render_config_backup(snapshots)
     advice = generate_network_advice(snapshots, inventory.ai)
 
@@ -185,7 +213,7 @@ def _render_summary(
             topology,
             ip_allocation,
             device_inventory,
-            "# 安全与网络建议",
+            "# 全网安全与网络优化建议",
             "",
             advice,
             "",
@@ -193,3 +221,44 @@ def _render_summary(
             config_backup,
         ]
     )
+
+
+def _extract_device_facts(snapshot: DeviceSnapshot) -> DeviceFacts:
+    source = "\n".join([snapshot.version, snapshot.config])
+    return DeviceFacts(
+        model=_extract_with_patterns(
+            source,
+            [
+                r"(?im)^\s*Device\s+name\s*:\s*(.+)$",
+                r"(?im)^\s*Device\s+model\s*:\s*(.+)$",
+                r"(?im)^\s*HUAWEI\s+(\S+)",
+                r"(?im)^\s*Ruijie\s+(\S+)",
+                r"(?im)^\s*Model\s*:\s*(.+)$",
+            ],
+        ),
+        serial_number=_extract_with_patterns(
+            source,
+            [
+                r"(?im)^\s*ESN\s*:\s*(\S+)",
+                r"(?im)^\s*SN\s*:\s*(\S+)",
+                r"(?im)^\s*Serial(?:\s+Number)?\s*[:=]\s*(\S+)",
+            ],
+        ),
+        software_version=_extract_with_patterns(
+            source,
+            [
+                r"(?im)^\s*VRP\s*\(R\)\s*software.*?Version\s*([^,\n]+(?:,[^\n]+)?)",
+                r"(?im)^\s*Software\s+Version\s*[:=]\s*(.+)$",
+                r"(?im)^\s*Version\s*[:=]\s*(.+)$",
+                r"(?im)^\s*RGOS\s+version\s*[:=]\s*(.+)$",
+            ],
+        ),
+    )
+
+
+def _extract_with_patterns(text: str, patterns: list[str]) -> str:
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            return match.group(1).strip()
+    return "未识别"
