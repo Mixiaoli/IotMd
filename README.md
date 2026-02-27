@@ -10,6 +10,8 @@
 - 可选启用 AI 总结，输出更易读的设备角色描述，并在交互模式中由 AI 生成更自然的问题。
 - 支持自然语言查询与诊断，提供排查建议与优化思路。
 
+- 华为采集默认执行：`display current-configuration`、`display lldp neighbor brief`、`display interface brief`、`display version`。
+
 ## 快速开始
 
 1. 安装依赖并安装 CLI

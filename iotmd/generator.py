@@ -292,6 +292,7 @@ def _extract_device_facts(snapshot: DeviceSnapshot) -> DeviceFacts:
             [
                 r"(?im)^\s*Device\s+name\s*:\s*(.+)$",
                 r"(?im)^\s*Device\s+model\s*:\s*(.+)$",
+                r"(?im)^\s*HUAWEI\s+([A-Z0-9-]+)\s+Routing\s+Switch\s+uptime",
                 r"(?im)^\s*HUAWEI\s+(\S+)",
                 r"(?im)^\s*Ruijie\s+(\S+)",
                 r"(?im)^\s*(LS-\S+)",
@@ -305,6 +306,7 @@ def _extract_device_facts(snapshot: DeviceSnapshot) -> DeviceFacts:
                 r"(?im)^\s*ESN\s*:\s*(\S+)",
                 r"(?im)^\s*SN\s*:\s*(\S+)",
                 r"(?im)^\s*DEVICE_SERIAL_NUMBER\s*:\s*(\S+)",
+                r"(?im)^\s*([A-Z0-9]{8,})\s+\d+\(Master\)\s*:",
                 r"(?im)^\s*Serial(?:\s+Number)?\s*[:=]\s*(\S+)",
             ],
         ),
@@ -312,6 +314,7 @@ def _extract_device_facts(snapshot: DeviceSnapshot) -> DeviceFacts:
             source,
             [
                 r"(?im)^\s*Comware\s+Software.*?Version\s+([^,\s]+,\s*Release\s+\S+)",
+                r"(?im)^\s*VRP\s*\(R\)\s*software,\s*Version\s*(.+)$",
                 r"(?im)^\s*VRP\s*\(R\)\s*software.*?Version\s*([^,\n]+(?:,[^\n]+)?)",
                 r"(?im)^\s*Software\s+Version\s*[:=]\s*(.+)$",
                 r"(?im)^\s*Version\s*[:=]\s*(.+)$",
