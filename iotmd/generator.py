@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from iotmd.ai import AiSummary, generate_network_advice, summarize_device
@@ -13,6 +13,7 @@ from iotmd.topology import build_topology, render_mermaid
 @dataclass(frozen=True)
 class DocumentBundle:
     summary: str
+    device_documents: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -36,8 +37,9 @@ def build_documents(inventory: Inventory, snapshots: list[DeviceSnapshot]) -> Do
 
     topology_links = build_topology(snapshots)
     summary = _render_summary(inventory, summaries, snapshots, topology_links)
+    device_docs = _render_per_device_documents(inventory, snapshots, summaries)
 
-    return DocumentBundle(summary=summary)
+    return DocumentBundle(summary=summary, device_documents=device_docs)
 
 
 def write_documents(bundle: DocumentBundle, output_dir: str | Path) -> None:
@@ -45,6 +47,8 @@ def write_documents(bundle: DocumentBundle, output_dir: str | Path) -> None:
     output_path.mkdir(parents=True, exist_ok=True)
 
     (output_path / "summary.md").write_text(bundle.summary, encoding="utf-8")
+    for filename, content in bundle.device_documents.items():
+        (output_path / filename).write_text(content, encoding="utf-8")
 
 
 def _render_overview(inventory: Inventory, summaries: list[AiSummary]) -> str:
@@ -165,8 +169,8 @@ def _render_device_inventory(
     inventory: Inventory, snapshots: list[DeviceSnapshot], summaries: list[AiSummary]
 ) -> str:
     rows = [
-        "| 设备名称 | 设备厂商 | 设备型号 | 管理地址 | 管理方式 | 用户名 | SN | 软件版本 | AI 优化建议 | 备注 |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| 设备名称 | 设备厂商 | 设备型号 | 管理地址 | 管理方式 | 用户名 | SN | 软件版本 | 文档文件 | AI 优化建议 | 备注 |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     device_map = {device.name: device for device in inventory.devices}
     host_device_map = {device.host: device for device in inventory.devices}
@@ -177,6 +181,9 @@ def _render_device_inventory(
             host_snapshot_map[device.host] = snapshot
 
     summary_map = {summary.device_name: summary.summary for summary in summaries}
+
+    def _doc_filename(host: str) -> str:
+        return f"device_{host.replace('.', '_')}.md"
 
     if inventory.subnet_hosts:
         used_hosts: set[str] = set()
@@ -190,19 +197,19 @@ def _render_device_inventory(
                 advice = summary_map.get(snapshot.name, "-").replace("\n", " ")
                 rows.append(
                     f"| {snapshot.name} | {snapshot.vendor} | {facts.model} | {host} | ssh | {device.username if device else '-'} | "
-                    f"{facts.serial_number} | {facts.software_version} | {advice} | 已采集 |"
+                    f"{facts.serial_number} | {facts.software_version} | {_doc_filename(host)} | {advice} | 已采集 |"
                 )
             elif not host_item.online:
                 rows.append(
-                    f"| - | - | - | {host} | ping | - | - | - | - | {host_item.remark or '预留（Ping 不通）'} |"
+                    f"| - | - | - | {host} | ping | - | - | - | - | - | {host_item.remark or '预留（Ping 不通）'} |"
                 )
             elif not host_item.ssh_open:
                 rows.append(
-                    f"| - | - | - | {host} | ping | - | - | - | - | {host_item.remark or 'Ping 通但 SSH 不可达'} |"
+                    f"| - | - | - | {host} | ping | - | - | - | - | - | {host_item.remark or 'Ping 通但 SSH 不可达'} |"
                 )
             else:
                 rows.append(
-                    f"| - | - | - | {host} | ssh | - | - | - | - | SSH 可达但采集失败（检查账号密码/命令权限） |"
+                    f"| - | - | - | {host} | ssh | - | - | - | - | - | SSH 可达但采集失败（检查账号密码/命令权限） |"
                 )
 
         for snapshot in snapshots:
@@ -213,7 +220,7 @@ def _render_device_inventory(
             advice = summary_map.get(snapshot.name, "-").replace("\n", " ")
             rows.append(
                 f"| {snapshot.name} | {snapshot.vendor} | {facts.model} | {device.host} | ssh | {device.username} | "
-                f"{facts.serial_number} | {facts.software_version} | {advice} | 已采集 |"
+                f"{facts.serial_number} | {facts.software_version} | {_doc_filename(device.host)} | {advice} | 已采集 |"
             )
     else:
         for snapshot in snapshots:
@@ -224,7 +231,7 @@ def _render_device_inventory(
             advice = summary_map.get(snapshot.name, "-").replace("\n", " ")
             rows.append(
                 f"| {snapshot.name} | {snapshot.vendor} | {facts.model} | {host} | ssh | {username} | "
-                f"{facts.serial_number} | {facts.software_version} | {advice} | 已采集 |"
+                f"{facts.serial_number} | {facts.software_version} | {(_doc_filename(host) if host != '-' else '-')} | {advice} | 已采集 |"
             )
 
     return "\n".join(
@@ -282,6 +289,52 @@ def _render_summary(
             config_backup,
         ]
     )
+
+
+def _render_per_device_documents(
+    inventory: Inventory,
+    snapshots: list[DeviceSnapshot],
+    summaries: list[AiSummary],
+) -> dict[str, str]:
+    docs: dict[str, str] = {}
+    summary_map = {summary.device_name: summary.summary for summary in summaries}
+    device_map = {device.name: device for device in inventory.devices}
+    for snapshot in snapshots:
+        device = device_map.get(snapshot.name)
+        host = device.host if device else snapshot.name
+        filename = f"device_{host.replace('.', '_')}.md"
+        facts = _extract_device_facts(snapshot)
+        docs[filename] = "\n".join(
+            [
+                f"# 设备文档 - {snapshot.name}",
+                "",
+                f"- 管理IP: {host}",
+                f"- 厂商: {snapshot.vendor}",
+                f"- 型号: {facts.model}",
+                f"- SN: {facts.serial_number}",
+                f"- 软件版本: {facts.software_version}",
+                "",
+                "## AI 摘要",
+                summary_map.get(snapshot.name, ""),
+                "",
+                "## 接口概览",
+                "```",
+                snapshot.interfaces.strip(),
+                "```",
+                "",
+                "## LLDP 邻居",
+                "```",
+                snapshot.lldp.strip(),
+                "```",
+                "",
+                "## 配置",
+                "```",
+                snapshot.config.strip(),
+                "```",
+                "",
+            ]
+        )
+    return docs
 
 
 def _extract_device_facts(snapshot: DeviceSnapshot) -> DeviceFacts:
