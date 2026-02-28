@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+
+# venv
+venv/
+.venv/
+
+# IDE
+.idea/
+
+# build / dist
+build/
+dist/
+*.egg-info/
+
+# your outputs
+output/

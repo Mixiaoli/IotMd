@@ -1,0 +1,16 @@
+[project]
+name = "iotmd"
+version = "0.1.0"
+description = "Markdown + Git based ops documentation generator for network devices."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "IotMd" }]
+dependencies = [
+  "paramiko>=3.4.0",
+  "requests>=2.32.3",
+  "pyyaml>=6.0.2",
+]
+
+[project.scripts]
+iotmd = "iotmd.cli:main"
