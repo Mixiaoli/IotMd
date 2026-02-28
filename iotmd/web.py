@@ -131,7 +131,8 @@ def _handle_chat_message(state: WebState, message: str, args: argparse.Namespace
             "1) 生成文档（进入问答采集流程）\n"
             "2) 取消（中断当前采集问答）\n"
             "3) 帮助\n"
-            "你不需要上传 inventory 文件，我会在聊天里逐项问你。",
+            "你不需要上传 inventory 文件，我会在聊天里逐项问你。\n"
+            "未生成文档前，你也可以直接进行普通聊天。",
             None,
         )
 
@@ -403,13 +404,13 @@ def _index_html() -> str:
   <div class="app">
     <div class="header">
       <div class="title">IotMd 智能运维对话助手</div>
-      <div class="muted">你只需要在聊天框输入“生成文档”，我会通过问答收集信息并自动生成文档发送给你。</div>
+      <div class="muted">你可以直接普通聊天；如果输入“生成文档”，我会通过问答收集信息并自动生成文档发送给你。</div>
     </div>
 
     <div id="chat" class="chat"></div>
 
     <div class="toolbar">
-      <input id="msg" type="text" placeholder="输入消息（例如：生成文档 / 帮助 / 取消）" />
+      <input id="msg" type="text" placeholder="输入消息（例如：你好 / 网络趋势 / 生成文档 / 帮助 / 取消）" />
       <button onclick="sendMsg()">发送</button>
     </div>
   </div>
@@ -451,7 +452,7 @@ document.getElementById('msg').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') sendMsg();
 });
 
-addBubble('你好，我是 IotMd 助手。你可以直接输入“生成文档”，我会开始问你需要的信息。', 'ai');
+addBubble('你好，我是 IotMd 助手。你可以先正常聊天；需要出文档时再输入“生成文档”。', 'ai');
 </script>
 </body>
 </html>

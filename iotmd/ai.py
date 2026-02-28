@@ -262,18 +262,26 @@ def _build_query_prompt(query: str, snapshots: Iterable[DeviceSnapshot]) -> str:
 
 def _fallback_answer(query: str, snapshots: Iterable[DeviceSnapshot]) -> str:
     snapshot_list = list(snapshots)
-    if not snapshot_list:
-        lowered = query.lower()
-        if lowered in {"hi", "hello", "你好", "您好"}:
-            return (
-                "你好，我在。即使暂未采集交换机数据，也可以先回答通用运维问题。"
-                "如果你想结合现网信息分析，可以输入“加载设备”重新采集。"
-            )
-        return (
-            "当前还没有设备快照，我可以先给你通用排查建议。"
-            "如果你希望基于交换机配置做精准分析，请输入“加载设备”重新采集。"
-        )
     lowered = query.lower()
+    if not snapshot_list:
+        if lowered in {"hi", "hello", "你好", "您好"}:
+            return "你好，我在。即使暂未采集交换机数据，也可以先聊通用网络与运维问题。"
+        if any(keyword in query for keyword in {"流行", "趋势", "新技术"}):
+            return (
+                "当前网络技术常见趋势包括：\n"
+                "1) EVPN-VXLAN（园区/数据中心多租户与弹性扩展）\n"
+                "2) SRv6 / Segment Routing（可编程转发与路径工程）\n"
+                "3) Wi-Fi 7 与高密无线优化（办公与园区体验提升）\n"
+                "4) SASE / 零信任（安全与访问一体化）\n"
+                "5) AIOps + Telemetry（可观测性与自动化运维）"
+            )
+        if "网络" in query or "运维" in query or "排查" in query:
+            return (
+                "可以先按通用思路排查：明确现象→确认影响范围→核查链路/VLAN/网关/ACL→"
+                "查看日志与告警→形成回退方案。你也可以继续告诉我具体症状，我给你细化步骤。"
+            )
+        return "当然可以继续聊天。你可以问我网络技术、运维排障、架构设计等通用问题。"
+    
     if "cpu" in lowered or "利用率" in query:
         return (
             "暂未接入实时性能监控数据，无法直接给出 CPU 曲线。"
