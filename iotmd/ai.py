@@ -266,6 +266,17 @@ def _fallback_answer(query: str, snapshots: Iterable[DeviceSnapshot]) -> str:
     if not snapshot_list:
         if lowered in {"hi", "hello", "你好", "您好"}:
             return "你好，我在。即使暂未采集交换机数据，也可以先聊通用网络与运维问题。"
+        if "dhcp" in lowered:
+            return (
+                "你这个 DHCP 问题可以按这个顺序快速定位：\n"
+                "1) 客户端侧：确认是否拿到 APIPA 地址(169.254.x.x)，执行 ipconfig /all 或 dhclient -v。\n"
+                "2) 二层侧：确认接入口 VLAN 正确、上联 trunk 放行该 VLAN、无环路/端口 err-disable。\n"
+                "3) 三层网关：确认 SVI/网关地址 up，且有到 DHCP Server 的可达路由。\n"
+                "4) 中继配置：检查 DHCP Relay(ip helper-address) 是否配置在对应网关接口。\n"
+                "5) 服务端：确认地址池未耗尽、租约时间合理、服务进程正常、无冲突。\n"
+                "6) 安全策略：检查 ACL / DHCP Snooping / Option82 是否误拦截。\n"
+                "如果你告诉我现象（全部失败还是部分失败、哪个 VLAN、是否跨网段），我可以给你精确到命令级的排查步骤。"
+            )
         if any(keyword in query for keyword in {"流行", "趋势", "新技术"}):
             return (
                 "当前网络技术常见趋势包括：\n"
@@ -277,11 +288,12 @@ def _fallback_answer(query: str, snapshots: Iterable[DeviceSnapshot]) -> str:
             )
         if "网络" in query or "运维" in query or "排查" in query:
             return (
+                f"收到，你问的是：{query}。\n"
                 "可以先按通用思路排查：明确现象→确认影响范围→核查链路/VLAN/网关/ACL→"
                 "查看日志与告警→形成回退方案。你也可以继续告诉我具体症状，我给你细化步骤。"
             )
-        return "当然可以继续聊天。你可以问我网络技术、运维排障、架构设计等通用问题。"
-    
+        return f"我理解你的问题是“{query}”。目前未采集设备快照，我先给你通用思路；如果你需要，我也可以继续追问并给出更细化方案。"
+
     if "cpu" in lowered or "利用率" in query:
         return (
             "暂未接入实时性能监控数据，无法直接给出 CPU 曲线。"
