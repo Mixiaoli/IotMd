@@ -100,7 +100,7 @@ ai:
 python -m iotmd --web --host 127.0.0.1 --port 8765 --output output
 ```
 
-打开浏览器访问 `http://127.0.0.1:8765` 后，建议先在对话框发送 `设置key 你的Key` 启用真实 AI 回答。
+打开浏览器访问 `http://127.0.0.1:8765` 后，系统会优先读取 `--inventory` 对应配置文件中的 AI key 与默认账号密码；若未读取到 key，再发送 `设置key 你的Key`。
 
 然后输入“生成文档”，系统会通过问答逐项收集：
 
@@ -114,3 +114,6 @@ python -m iotmd --web --host 127.0.0.1 --port 8765 --output output
 
 
 Web 对话生成模式说明：默认交换机账号密码可读取配置文件（`--inventory` 对应 YAML）；问答中可选择是否修改，直接回车可使用默认值。
+
+
+若页面提示 `requests is not installed`，请先安装依赖：`pip install -r requirements.txt`。

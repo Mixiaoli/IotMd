@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from iotmd.ai import answer_query_live, resolve_api_key
+from iotmd.ai import answer_query_live, is_requests_available, resolve_api_key
 from iotmd.config import AiConfig, DeviceConfig, Inventory, load_inventory
 from iotmd.discovery import scan_subnet
 from iotmd.generator import build_documents, write_documents
@@ -48,6 +48,8 @@ class ConversationForm:
 class WebState:
     ai: AiConfig
     defaults: Defaults
+    key_source: str = "none"
+    startup_notice: str = ""
     inventory: Inventory | None = None
     snapshots: list = field(default_factory=list)
     last_output_dir: Path | None = None
@@ -147,14 +149,20 @@ def _build_initial_state(args: argparse.Namespace) -> WebState:
         api_key=resolve_api_key(None),
     )
 
+    key_source = "none"
+    startup_notice = ""
+    inventory_path = Path(args.inventory)
+
     try:
-        inv = load_inventory(Path(args.inventory))
+        inv = load_inventory(inventory_path)
         ai = AiConfig(
             enabled=True,
             api_base=inv.ai.api_base,
             model=inv.ai.model,
             api_key=resolve_api_key(inv.ai.api_key),
         )
+        if ai.api_key:
+            key_source = f"inventory({inventory_path})"
         if inv.devices:
             first = inv.devices[0]
             defaults = Defaults(
@@ -163,15 +171,19 @@ def _build_initial_state(args: argparse.Namespace) -> WebState:
                 username=first.username,
                 password=first.password,
             )
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        startup_notice = f"读取配置文件 {inventory_path} 失败：{exc}"
 
     # env key overrides
     env_key = os.environ.get("DASHSCOPE_API_KEY")
     if env_key:
         ai = AiConfig(enabled=True, api_base=ai.api_base, model=ai.model, api_key=env_key)
+        key_source = "env(DASHSCOPE_API_KEY)"
+    if not is_requests_available():
+        missing_notice = "当前环境缺少 requests 依赖，真实 AI 无法调用。请先安装 requirements.txt。"
+        startup_notice = f"{startup_notice}；{missing_notice}" if startup_notice else missing_notice
 
-    return WebState(ai=ai, defaults=defaults)
+    return WebState(ai=ai, defaults=defaults, key_source=key_source, startup_notice=startup_notice)
 
 
 def _handle_chat_message(state: WebState, message: str, args: argparse.Namespace) -> tuple[str, list[dict[str, str]]]:
@@ -185,7 +197,8 @@ def _handle_chat_message(state: WebState, message: str, args: argparse.Namespace
             "1) 生成文档（进入问答采集流程）\n"
             "2) 设置key sk-xxx（覆盖配置文件中的 key）\n"
             "3) 取消（中断当前采集问答）\n"
-            "说明：直接回车（空白）可以采用默认值。",
+            "说明：直接回车（空白）可以采用默认值。\n"
+            f"当前 key 来源: {state.key_source if state.key_source != 'none' else '未配置'}。",
             [],
         )
 
@@ -194,6 +207,7 @@ def _handle_chat_message(state: WebState, message: str, args: argparse.Namespace
         if not key:
             return "请在“设置key ”后面输入你的 API Key。", []
         state.ai = AiConfig(enabled=True, api_base=state.ai.api_base, model=state.ai.model, api_key=key)
+        state.key_source = "manual(chat)"
         return "API Key 已设置成功。", []
 
     if lowered in {"取消", "cancel"} and state.form.active:
@@ -211,8 +225,16 @@ def _handle_chat_message(state: WebState, message: str, args: argparse.Namespace
         state.form.scan_password = state.defaults.password
         return "好的，开始收集文档信息。第 1 步：请输入站点名称（默认：HQ）。", []
 
+    if state.startup_notice:
+        notice = state.startup_notice
+        state.startup_notice = ""
+        return notice, []
+
+    if not is_requests_available():
+        return "当前环境缺少 requests 依赖，无法调用真实 AI。请先安装 requirements.txt。", []
+
     if not resolve_api_key(state.ai.api_key):
-        return "当前未配置 API Key（且配置文件/环境变量中未读取到）。请发送：设置key 你的Key。", []
+        return "当前未配置 API Key（未从 inventory.yaml / 环境变量读取到）。请发送：设置key 你的Key。", []
 
     try:
         response = answer_query_live(message.strip() or "你好", state.snapshots, state.ai)
@@ -489,7 +511,7 @@ def _index_html() -> str:
   <div class="app">
     <div class="header">
       <div class="title">IotMd 智能运维对话助手</div>
-      <div class="muted">支持扫描网段自动发现交换机。直接回车可采用默认值。生成后会输出 summary.md 和每台设备IP对应的 md 文档。</div>
+      <div class="muted">支持扫描网段自动发现交换机。优先读取 inventory.yaml 的 key/默认账号密码。直接回车可采用默认值。</div>
     </div>
     <div id="chat" class="chat"></div>
     <div class="toolbar">
@@ -542,7 +564,7 @@ document.getElementById('msg').addEventListener('keydown', (e) => {
   }
 });
 
-addBubble('你好，我是 IotMd 助手。输入“生成文档”开始问答；也可以先“设置key 你的Key”启用真实 AI。', 'ai');
+addBubble('你好，我是 IotMd 助手。我会优先读取 inventory.yaml 的 key 与默认账号密码；若未读取到 key，可发送“设置key 你的Key”。', 'ai');
 </script>
 </body>
 </html>

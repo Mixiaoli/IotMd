@@ -17,6 +17,10 @@ from iotmd.collectors import DeviceSnapshot
 from iotmd.config import AiConfig
 
 
+def is_requests_available() -> bool:
+    return requests is not None
+
+
 def _requests_post(*args, **kwargs):
     if requests is None:
         raise RequestException("requests is not installed")
