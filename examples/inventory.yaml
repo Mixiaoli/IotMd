@@ -1,0 +1,25 @@
+site: "HQ"
+contacts:
+  owner: "NetOps"
+  phone: "+86-10-5555-0000"
+  email: "netops@example.com"
+
+ai:
+  enabled: true
+  api_base: "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
+  model: "qwen-turbo"
+  api_key: "sk-398a0e16d015493892bb8ffb8da751a5"
+
+devices:
+  - name: "core-sw-1"
+    vendor: "huawei"
+    host: "192.0.2.10"
+    port: 22
+    username: "huawei"
+    password: "Xdf@123.456"
+  - name: "ap-1"
+    vendor: "ruijie"
+    host: "192.0.2.20"
+    port: 22
+    username: "netops"
+    password: "password"
