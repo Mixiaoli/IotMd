@@ -16,7 +16,6 @@ from iotmd.config import AiConfig, Inventory, load_inventory
 from iotmd.generator import build_documents, write_documents
 
 
-
 @dataclass
 class WebState:
     ai: AiConfig = field(
@@ -97,16 +96,6 @@ def run_web(args: argparse.Namespace) -> None:
                 self._send_json({"error": "JSON 格式错误"}, status=400)
                 return
 
-            if parsed.path == "/api/chat":
-                message = str(payload.get("message", "")).strip()
-                if not message:
-                    self._send_json({"error": "message 不能为空"}, status=400)
-                    return
-                with lock:
-                    response = answer_query(message, state.snapshots, state.ai)
-                self._send_json({"reply": response})
-                return
-
             if parsed.path == "/api/load_inventory":
                 yaml_text = str(payload.get("inventoryYaml", "")).strip()
                 timeout = int(payload.get("timeout", args.timeout))
@@ -130,27 +119,64 @@ def run_web(args: argparse.Namespace) -> None:
                     state.inventory = inventory
                     state.ai = inventory.ai
                     state.snapshots = snapshots
-                self._send_json({"message": f"已加载设备，采集成功 {len(snapshots)} 台"})
-                return
-
-            if parsed.path == "/api/generate":
-                with lock:
-                    if not state.inventory:
-                        self._send_json({"error": "请先加载设备清单"}, status=400)
-                        return
-                    if not state.snapshots:
-                        self._send_json({"error": "尚无可用快照，无法生成文档"}, status=400)
-                        return
-                    out_dir = Path(args.output)
-                    bundle = build_documents(state.inventory, state.snapshots)
-                    write_documents(bundle, out_dir)
-                    state.last_output_dir = out_dir
                 self._send_json(
                     {
-                        "message": "文档已生成",
-                        "downloadUrl": "/download/summary.md",
+                        "message": f"设备清单已加载，采集成功 {len(snapshots)} 台。你可以直接在对话里输入“生成文档”。"
                     }
                 )
+                return
+
+            if parsed.path == "/api/chat":
+                message = str(payload.get("message", "")).strip()
+                if not message:
+                    self._send_json({"error": "message 不能为空"}, status=400)
+                    return
+
+                lowered = message.lower()
+                if message in {"生成文档", "生成交换机文档", "发送文档"}:
+                    with lock:
+                        if not state.inventory:
+                            self._send_json(
+                                {
+                                    "reply": "我还没有设备数据。请先上传 inventory.yaml（左上角“上传设备清单”），我会自动采集后再生成文档。"
+                                }
+                            )
+                            return
+                        if not state.snapshots:
+                            self._send_json(
+                                {
+                                    "reply": "当前没有可用设备快照（可能全部采集失败），请检查网络/账号后重新上传清单。"
+                                }
+                            )
+                            return
+                        out_dir = Path(args.output)
+                        bundle = build_documents(state.inventory, state.snapshots)
+                        write_documents(bundle, out_dir)
+                        state.last_output_dir = out_dir
+                    self._send_json(
+                        {
+                            "reply": "文档已生成完成，我已把文件准备好了。",
+                            "downloadUrl": "/download/summary.md",
+                        }
+                    )
+                    return
+
+                if lowered in {"help", "帮助", "指令"}:
+                    self._send_json(
+                        {
+                            "reply": (
+                                "可用指令：\n"
+                                "1) 生成文档 / 发送文档\n"
+                                "2) 帮助\n"
+                                "提示：先上传 inventory.yaml，系统会自动采集。"
+                            )
+                        }
+                    )
+                    return
+
+                with lock:
+                    response = answer_query(message, state.snapshots, state.ai)
+                self._send_json({"reply": response})
                 return
 
             self.send_error(HTTPStatus.NOT_FOUND, "Not Found")
@@ -199,76 +225,181 @@ def _index_html() -> str:
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IotMd Web 助手</title>
+  <title>IotMd 对话助手</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; max-width: 1000px; }
-    .row { display: flex; gap: 16px; }
-    .col { flex: 1; }
-    textarea, input, button { width: 100%; margin-top: 8px; box-sizing: border-box; }
-    textarea { min-height: 140px; }
-    #chat { border: 1px solid #ddd; padding: 12px; min-height: 260px; white-space: pre-wrap; background: #fafafa; }
-    .muted { color: #666; font-size: 13px; }
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --brand: #22c55e;
+      --user: #2563eb;
+      --ai: #374151;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Arial, sans-serif;
+      background: radial-gradient(circle at top left, #1f2937 0%, var(--bg) 45%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 24px;
+    }
+    .app {
+      width: min(980px, 100%);
+      background: rgba(17, 24, 39, 0.95);
+      border: 1px solid #334155;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.35);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-height: 78vh;
+    }
+    .header {
+      padding: 16px 18px;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .title { font-weight: 700; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .upload { display: flex; align-items: center; gap: 8px; }
+    .upload textarea { display: none; }
+    .btn {
+      border: none;
+      padding: 9px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      color: white;
+      background: var(--panel-2);
+    }
+    .btn.brand { background: var(--brand); color: #052e16; font-weight: 700; }
+    .chat {
+      padding: 18px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: linear-gradient(180deg, rgba(17,24,39,.4), rgba(15,23,42,.4));
+    }
+    .bubble {
+      max-width: 80%;
+      padding: 12px 14px;
+      border-radius: 14px;
+      white-space: pre-wrap;
+      line-height: 1.45;
+      border: 1px solid #475569;
+    }
+    .user { align-self: flex-end; background: var(--user); border-color: #60a5fa; }
+    .ai { align-self: flex-start; background: var(--ai); }
+    .toolbar {
+      border-top: 1px solid #334155;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      background: var(--panel);
+    }
+    input[type=text] {
+      width: 100%;
+      border: 1px solid #475569;
+      border-radius: 10px;
+      padding: 12px;
+      background: #0b1220;
+      color: var(--text);
+      outline: none;
+    }
+    a.download {
+      color: #86efac;
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-block;
+      margin-top: 6px;
+    }
   </style>
 </head>
 <body>
-  <h2>IotMd Web 对话与文档助手</h2>
-  <p class="muted">流程：粘贴 inventory.yaml → 加载采集 → 对话提问 → 生成文档并下载 summary.md</p>
-  <div class="row">
-    <div class="col">
-      <h3>1) 设备清单</h3>
-      <textarea id="inv" placeholder="粘贴 inventory.yaml"></textarea>
-      <button onclick="loadInventory()">加载并采集</button>
-      <p id="loadMsg" class="muted"></p>
-      <h3>2) 生成文档</h3>
-      <button onclick="generateDocs()">生成文档</button>
-      <a id="download" href="#" style="display:none;">下载 summary.md</a>
+  <div class="app">
+    <div class="header">
+      <div>
+        <div class="title">IotMd 智能运维对话助手</div>
+        <div class="muted">先上传 inventory.yaml 自动采集，然后直接在对话输入“生成文档”即可发送文档。</div>
+      </div>
+      <div class="upload">
+        <input id="file" type="file" accept=".yaml,.yml,text/plain" />
+        <button class="btn brand" onclick="uploadInventory()">上传设备清单</button>
+      </div>
     </div>
-    <div class="col">
-      <h3>3) 对话</h3>
-      <div id="chat"></div>
-      <input id="msg" placeholder="请输入问题" />
-      <button onclick="sendMsg()">发送</button>
+
+    <div id="chat" class="chat"></div>
+
+    <div class="toolbar">
+      <input id="msg" type="text" placeholder="输入消息（例如：你好 / 生成文档 / 帮助）" />
+      <button class="btn" onclick="sendMsg()">发送</button>
     </div>
   </div>
 
 <script>
-function append(role, text) {
-  const box = document.getElementById('chat');
-  box.textContent += `${role}: ${text}\n\n`;
-  box.scrollTop = box.scrollHeight;
+function addBubble(text, role='ai', downloadUrl='') {
+  const chat = document.getElementById('chat');
+  const el = document.createElement('div');
+  el.className = `bubble ${role}`;
+  el.textContent = text;
+  if (downloadUrl) {
+    const link = document.createElement('a');
+    link.className = 'download';
+    link.href = downloadUrl;
+    link.textContent = '⬇ 下载 summary.md';
+    el.appendChild(document.createElement('br'));
+    el.appendChild(link);
+  }
+  chat.appendChild(el);
+  chat.scrollTop = chat.scrollHeight;
 }
-async function loadInventory() {
-  const inventoryYaml = document.getElementById('inv').value;
+
+async function uploadInventory() {
+  const f = document.getElementById('file').files[0];
+  if (!f) {
+    addBubble('请先选择一个 inventory.yaml 文件。', 'ai');
+    return;
+  }
+  const text = await f.text();
+  addBubble(`已上传清单文件：${f.name}，正在采集设备...`, 'user');
   const resp = await fetch('/api/load_inventory', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({inventoryYaml})
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({inventoryYaml: text})
   });
   const data = await resp.json();
-  document.getElementById('loadMsg').textContent = data.message || data.error;
+  addBubble(data.message || data.error || '处理完成。', 'ai');
 }
+
 async function sendMsg() {
-  const message = document.getElementById('msg').value;
+  const input = document.getElementById('msg');
+  const message = input.value.trim();
   if (!message) return;
-  append('你', message);
-  document.getElementById('msg').value = '';
+  addBubble(message, 'user');
+  input.value = '';
   const resp = await fetch('/api/chat', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({message})
   });
   const data = await resp.json();
-  append('AI', data.reply || data.error || '无响应');
+  addBubble(data.reply || data.error || '无响应', 'ai', data.downloadUrl || '');
 }
-async function generateDocs() {
-  const resp = await fetch('/api/generate', {method: 'POST'});
-  const data = await resp.json();
-  if (data.downloadUrl) {
-    const a = document.getElementById('download');
-    a.href = data.downloadUrl;
-    a.style.display = 'inline-block';
-    a.textContent = '下载 summary.md';
-  }
-  document.getElementById('loadMsg').textContent = data.message || data.error;
-}
+
+document.getElementById('msg').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') sendMsg();
+});
+
+addBubble('你好，我是 IotMd 助手。先上传设备清单，然后你可以直接说“生成文档”。', 'ai');
 </script>
 </body>
 </html>
