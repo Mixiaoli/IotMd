@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from iotmd.ai import answer_query
+from iotmd.ai import answer_query_live, resolve_api_key
 from iotmd.config import AiConfig, DeviceConfig, Inventory
 from iotmd.generator import build_documents, write_documents
 
@@ -136,6 +136,18 @@ def _handle_chat_message(state: WebState, message: str, args: argparse.Namespace
             None,
         )
 
+    if lowered.startswith("设置key ") or lowered.startswith("set key "):
+        key = message.split(" ", 1)[1].strip()
+        if not key:
+            return "请在“设置key ”后面输入你的 API Key。", None
+        state.ai = AiConfig(
+            enabled=True,
+            api_base=state.ai.api_base,
+            model=state.ai.model,
+            api_key=key,
+        )
+        return "API Key 已设置成功。现在会优先使用真实 AI 回答。", None
+
     if lowered in {"取消", "cancel"} and state.form.active:
         state.form = ConversationForm()
         return "已取消本次信息采集。你可以随时再输入“生成文档”重新开始。", None
@@ -151,7 +163,15 @@ def _handle_chat_message(state: WebState, message: str, args: argparse.Namespace
             None,
         )
 
-    response = answer_query(message, state.snapshots, state.ai)
+    if not resolve_api_key(state.ai.api_key):
+        return (
+            "当前未配置 API Key，暂时无法调用真实 AI。请先发送：设置key 你的Key。",
+            None,
+        )
+    try:
+        response = answer_query_live(message, state.snapshots, state.ai)
+    except RuntimeError as exc:
+        return (f"真实 AI 调用失败：{exc}", None)
     return response, None
 
 
@@ -404,13 +424,13 @@ def _index_html() -> str:
   <div class="app">
     <div class="header">
       <div class="title">IotMd 智能运维对话助手</div>
-      <div class="muted">你可以直接普通聊天；如果输入“生成文档”，我会通过问答收集信息并自动生成文档发送给你。</div>
+      <div class="muted">先发送“设置key 你的Key”启用真实 AI。然后你可以普通聊天，或输入“生成文档”进入问答生成流程。</div>
     </div>
 
     <div id="chat" class="chat"></div>
 
     <div class="toolbar">
-      <input id="msg" type="text" placeholder="输入消息（例如：你好 / 网络趋势 / 生成文档 / 帮助 / 取消）" />
+      <input id="msg" type="text" placeholder="输入消息（例如：设置key sk-xxx / 你好 / 生成文档 / 帮助 / 取消）" />
       <button onclick="sendMsg()">发送</button>
     </div>
   </div>
@@ -452,7 +472,7 @@ document.getElementById('msg').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') sendMsg();
 });
 
-addBubble('你好，我是 IotMd 助手。你可以先正常聊天；需要出文档时再输入“生成文档”。', 'ai');
+addBubble('你好，我是 IotMd 助手。先发送“设置key 你的Key”启用真实 AI，再聊天或输入“生成文档”。', 'ai');
 </script>
 </body>
 </html>

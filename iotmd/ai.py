@@ -238,6 +238,54 @@ def answer_query(
         return _fallback_answer(query, snapshots)
 
 
+def answer_query_live(
+    query: str,
+    snapshots: Iterable[DeviceSnapshot],
+    ai: AiConfig,
+) -> str:
+    resolved_key = resolve_api_key(ai.api_key)
+    if not resolved_key:
+        raise RuntimeError("未配置 API Key")
+
+    prompt = _build_query_prompt(query, snapshots)
+    try:
+        response = _requests_post(
+            ai.api_base,
+            headers={"Authorization": f"Bearer {resolved_key}"},
+            json={
+                "model": ai.model,
+                "input": {
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": (
+                                "你是网络运维助手。需要基于设备配置、LLDP、接口摘要回答问题。"
+                                "如果缺少数据，明确说明缺口并给出可执行的排查步骤。"
+                                "输出结构化要点，尽量中文。"
+                                "当用户请求诊断或优化时，给出根因、影响范围、建议。"
+                            ),
+                        },
+                        {"role": "user", "content": prompt},
+                    ]
+                },
+                "parameters": {"temperature": 0.2},
+            },
+            timeout=30,
+        )
+        response.raise_for_status()
+        data = response.json()
+        output = data.get("output", {})
+        content = output.get("text")
+        if not content:
+            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        content = str(content).strip()
+        if not content:
+            raise RuntimeError("AI 返回空内容")
+        return content
+    except RequestException as exc:
+        raise RuntimeError(f"AI 请求失败: {exc}") from exc
+
+
 def _build_query_prompt(query: str, snapshots: Iterable[DeviceSnapshot]) -> str:
     parts = [
         "用户问题:",
