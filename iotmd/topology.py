@@ -14,6 +14,7 @@ class TopologyLink:
     remote_port: str
 
 
+# 函数说明: build_topology 的核心用途见函数实现逻辑。
 def build_topology(snapshots: list[DeviceSnapshot]) -> list[TopologyLink]:
     links: list[TopologyLink] = []
     for snapshot in snapshots:
@@ -21,6 +22,7 @@ def build_topology(snapshots: list[DeviceSnapshot]) -> list[TopologyLink]:
     return _dedupe_links(links)
 
 
+# 函数说明: render_mermaid 的核心用途见函数实现逻辑。
 def render_mermaid(links: list[TopologyLink]) -> str:
     lines = ["graph LR"]
     for link in links:
@@ -32,6 +34,7 @@ def render_mermaid(links: list[TopologyLink]) -> str:
     return "\n".join(lines)
 
 
+# 函数说明: _parse_lldp 的核心用途见函数实现逻辑。
 def _parse_lldp(snapshot: DeviceSnapshot) -> list[TopologyLink]:
     if snapshot.vendor == "huawei":
         return _parse_huawei_lldp(snapshot)
@@ -40,6 +43,7 @@ def _parse_lldp(snapshot: DeviceSnapshot) -> list[TopologyLink]:
     return []
 
 
+# 函数说明: _parse_huawei_lldp 的核心用途见函数实现逻辑。
 def _parse_huawei_lldp(snapshot: DeviceSnapshot) -> list[TopologyLink]:
     # Huawei output typically includes lines like:
     # GigabitEthernet0/0/1  DeviceA  GigabitEthernet0/0/24
@@ -60,6 +64,7 @@ def _parse_huawei_lldp(snapshot: DeviceSnapshot) -> list[TopologyLink]:
     return links
 
 
+# 函数说明: _parse_ruijie_lldp 的核心用途见函数实现逻辑。
 def _parse_ruijie_lldp(snapshot: DeviceSnapshot) -> list[TopologyLink]:
     # Ruijie output often includes columns like:
     # Local Interface  Chassis ID  Port ID  System Name
@@ -80,6 +85,7 @@ def _parse_ruijie_lldp(snapshot: DeviceSnapshot) -> list[TopologyLink]:
     return links
 
 
+# 函数说明: _dedupe_links 的核心用途见函数实现逻辑。
 def _dedupe_links(links: list[TopologyLink]) -> list[TopologyLink]:
     seen: set[tuple[str, str, str, str]] = set()
     unique: list[TopologyLink] = []

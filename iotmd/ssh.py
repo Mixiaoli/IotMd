@@ -16,6 +16,7 @@ class CommandResult:
     output: str
 
 
+# 函数说明: run_commands 的核心用途见函数实现逻辑。
 def run_commands(
     host: str,
     port: int,
@@ -67,6 +68,7 @@ def run_commands(
     return results
 
 
+# 函数说明: _drain 的核心用途见函数实现逻辑。
 def _drain(shell: paramiko.Channel) -> None:
     while True:
         try:
@@ -77,6 +79,7 @@ def _drain(shell: paramiko.Channel) -> None:
             return
 
 
+# 函数说明: _read_until_stable 的核心用途见函数实现逻辑。
 def _read_until_stable(
     shell: paramiko.Channel,
     pause: float = 0.35,

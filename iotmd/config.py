@@ -48,6 +48,7 @@ class Inventory:
     subnet_hosts: list[SubnetHost] = field(default_factory=list)
 
 
+# 函数说明: load_inventory 的核心用途见函数实现逻辑。
 def load_inventory(path: str | Path) -> Inventory:
     if yaml is None:
         raise RuntimeError("缺少 pyyaml 依赖，请先安装 pyyaml")

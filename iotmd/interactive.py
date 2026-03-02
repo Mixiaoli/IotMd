@@ -7,6 +7,7 @@ from iotmd.config import AiConfig, DeviceConfig, Inventory, SubnetHost
 from iotmd.discovery import scan_subnet
 
 
+# 函数说明: prompt_inventory 的核心用途见函数实现逻辑。
 def prompt_inventory() -> Inventory:
     ai = prompt_ai_config()
 
@@ -33,6 +34,7 @@ def prompt_inventory() -> Inventory:
     )
 
 
+# 函数说明: _prompt_manual_devices 的核心用途见函数实现逻辑。
 def _prompt_manual_devices(ai: AiConfig) -> list[DeviceConfig]:
     device_count = int(_prompt(_ask(ai, "设备数量"), default="1"))
     devices: list[DeviceConfig] = []
@@ -57,6 +59,7 @@ def _prompt_manual_devices(ai: AiConfig) -> list[DeviceConfig]:
     return devices
 
 
+# 函数说明: _prompt_discovered_devices 的核心用途见函数实现逻辑。
 def _prompt_discovered_devices(ai: AiConfig) -> tuple[list[DeviceConfig], str, list[SubnetHost]]:
     cidr = _prompt(_ask(ai, "网段 CIDR"), default="10.133.12.0/24")
     vendor = _prompt(_ask(ai, "发现设备厂商 (huawei/ruijie)"), default="huawei").lower()
@@ -86,6 +89,7 @@ def _prompt_discovered_devices(ai: AiConfig) -> tuple[list[DeviceConfig], str, l
     return devices, cidr, subnet_hosts
 
 
+# 函数说明: prompt_ai_config 的核心用途见函数实现逻辑。
 def prompt_ai_config() -> AiConfig:
     ai_key = os.environ.get("DASHSCOPE_API_KEY")
     if not ai_key:
@@ -105,16 +109,19 @@ def prompt_ai_config() -> AiConfig:
     return ai
 
 
+# 函数说明: _prompt 的核心用途见函数实现逻辑。
 def _prompt(label: str, default: str) -> str:
     value = input(f"{label} (默认: {default}): ").strip()
     return value or default
 
 
+# 函数说明: prompt_yes_no 的核心用途见函数实现逻辑。
 def prompt_yes_no(label: str, default: str = "y") -> bool:
     value = _prompt(label, default=default).lower()
     return value == "y"
 
 
+# 函数说明: prompt_credentials 的核心用途见函数实现逻辑。
 def prompt_credentials(
     ai: AiConfig,
     device_name: str,
@@ -125,6 +132,7 @@ def prompt_credentials(
     return username, password
 
 
+# 函数说明: _ask 的核心用途见函数实现逻辑。
 def _ask(ai: AiConfig, label: str) -> str:
     if not ai.enabled:
         return label

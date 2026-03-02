@@ -23,6 +23,7 @@ class DeviceFacts:
     software_version: str = "未识别"
 
 
+# 函数说明: build_documents 的核心用途见函数实现逻辑。
 def build_documents(inventory: Inventory, snapshots: list[DeviceSnapshot]) -> DocumentBundle:
     summaries = [
         summarize_device(
@@ -42,6 +43,7 @@ def build_documents(inventory: Inventory, snapshots: list[DeviceSnapshot]) -> Do
     return DocumentBundle(summary=summary, device_documents=device_docs)
 
 
+# 函数说明: write_documents 的核心用途见函数实现逻辑。
 def write_documents(bundle: DocumentBundle, output_dir: str | Path) -> None:
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -51,6 +53,7 @@ def write_documents(bundle: DocumentBundle, output_dir: str | Path) -> None:
         (output_path / filename).write_text(content, encoding="utf-8")
 
 
+# 函数说明: _render_overview 的核心用途见函数实现逻辑。
 def _render_overview(inventory: Inventory, summaries: list[AiSummary]) -> str:
     lines = [
         f"# {inventory.site} 运维文档总览",
@@ -82,6 +85,7 @@ def _render_overview(inventory: Inventory, summaries: list[AiSummary]) -> str:
     return "\n".join(lines) + "\n"
 
 
+# 函数说明: _render_topology 的核心用途见函数实现逻辑。
 def _render_topology(links: list) -> str:
     mermaid = render_mermaid(links)
     return "\n".join([
@@ -94,6 +98,7 @@ def _render_topology(links: list) -> str:
     ])
 
 
+# 函数说明: _render_device_details 的核心用途见函数实现逻辑。
 def _render_device_details(
     snapshots: list[DeviceSnapshot], summaries: list[AiSummary]
 ) -> str:
@@ -138,6 +143,7 @@ def _render_device_details(
     return "\n".join(sections)
 
 
+# 函数说明: _render_ip_allocation 的核心用途见函数实现逻辑。
 def _render_ip_allocation(
     inventory: Inventory, snapshots: list[DeviceSnapshot]
 ) -> str:
@@ -165,6 +171,7 @@ def _render_ip_allocation(
     )
 
 
+# 函数说明: _render_device_inventory 的核心用途见函数实现逻辑。
 def _render_device_inventory(
     inventory: Inventory, snapshots: list[DeviceSnapshot], summaries: list[AiSummary]
 ) -> str:
@@ -182,6 +189,7 @@ def _render_device_inventory(
 
     summary_map = {summary.device_name: summary.summary for summary in summaries}
 
+    # 函数说明: _doc_filename 的核心用途见函数实现逻辑。
     def _doc_filename(host: str) -> str:
         return f"device_{host.replace('.', '_')}.md"
 
@@ -246,6 +254,7 @@ def _render_device_inventory(
     )
 
 
+# 函数说明: _render_config_backup 的核心用途见函数实现逻辑。
 def _render_config_backup(snapshots: list[DeviceSnapshot]) -> str:
     sections = ["# 配置备份文档", ""]
     for snapshot in snapshots:
@@ -261,6 +270,7 @@ def _render_config_backup(snapshots: list[DeviceSnapshot]) -> str:
     return "\n".join(sections)
 
 
+# 函数说明: _render_summary 的核心用途见函数实现逻辑。
 def _render_summary(
     inventory: Inventory,
     summaries: list[AiSummary],
@@ -291,6 +301,7 @@ def _render_summary(
     )
 
 
+# 函数说明: _render_per_device_documents 的核心用途见函数实现逻辑。
 def _render_per_device_documents(
     inventory: Inventory,
     snapshots: list[DeviceSnapshot],
@@ -337,6 +348,7 @@ def _render_per_device_documents(
     return docs
 
 
+# 函数说明: _extract_device_facts 的核心用途见函数实现逻辑。
 def _extract_device_facts(snapshot: DeviceSnapshot) -> DeviceFacts:
     source = "\n".join([snapshot.version, snapshot.config])
     return DeviceFacts(
@@ -377,6 +389,7 @@ def _extract_device_facts(snapshot: DeviceSnapshot) -> DeviceFacts:
     )
 
 
+# 函数说明: _extract_with_patterns 的核心用途见函数实现逻辑。
 def _extract_with_patterns(text: str, patterns: list[str]) -> str:
     for pattern in patterns:
         match = re.search(pattern, text)

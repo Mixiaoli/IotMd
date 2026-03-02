@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from iotmd.config import SubnetHost
 
 
+# 函数说明: scan_subnet 的核心用途见函数实现逻辑。
 def scan_subnet(cidr: str, ssh_port: int = 22, ping_workers: int = 128, timeout: float = 0.8) -> list[SubnetHost]:
     hosts = [str(ip) for ip in ipaddress.ip_network(cidr, strict=False).hosts()]
     online_map: dict[str, bool] = {}
@@ -29,6 +30,7 @@ def scan_subnet(cidr: str, ssh_port: int = 22, ping_workers: int = 128, timeout:
     return results
 
 
+# 函数说明: _ping_host 的核心用途见函数实现逻辑。
 def _ping_host(host: str, timeout: float) -> bool:
     system = platform.system().lower()
     if system == "windows":
@@ -40,6 +42,7 @@ def _ping_host(host: str, timeout: float) -> bool:
     return subprocess.call(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0
 
 
+# 函数说明: _is_port_open 的核心用途见函数实现逻辑。
 def _is_port_open(host: str, port: int, timeout: float) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.settimeout(timeout)

@@ -17,10 +17,12 @@ from iotmd.collectors import DeviceSnapshot
 from iotmd.config import AiConfig
 
 
+# 函数说明: is_requests_available 的核心用途见函数实现逻辑。
 def is_requests_available() -> bool:
     return requests is not None
 
 
+# 函数说明: _requests_post 的核心用途见函数实现逻辑。
 def _requests_post(*args, **kwargs):
     if requests is None:
         raise RequestException("requests is not installed")
@@ -33,6 +35,7 @@ class AiSummary:
     summary: str
 
 
+# 函数说明: summarize_device 的核心用途见函数实现逻辑。
 def summarize_device(
     snapshot: DeviceSnapshot,
     api_base: str,
@@ -81,6 +84,7 @@ def summarize_device(
         return AiSummary(device_name=snapshot.name, summary=_fallback_summary(snapshot))
 
 
+# 函数说明: build_ai_question 的核心用途见函数实现逻辑。
 def build_ai_question(
     label: str,
     api_base: str,
@@ -125,6 +129,7 @@ def build_ai_question(
         return label
 
 
+# 函数说明: _fallback_summary 的核心用途见函数实现逻辑。
 def _fallback_summary(snapshot: DeviceSnapshot) -> str:
     return (
         f"设备 {snapshot.name} ({snapshot.vendor}) 已采集配置与接口信息。"
@@ -132,6 +137,7 @@ def _fallback_summary(snapshot: DeviceSnapshot) -> str:
     )
 
 
+# 函数说明: _build_prompt 的核心用途见函数实现逻辑。
 def _build_prompt(snapshot: DeviceSnapshot) -> str:
     return (
         "请根据以下信息，生成用于运维文档的设备摘要，包含：\n"
@@ -145,6 +151,7 @@ def _build_prompt(snapshot: DeviceSnapshot) -> str:
     )
 
 
+# 函数说明: generate_network_advice 的核心用途见函数实现逻辑。
 def generate_network_advice(
     snapshots: Iterable[DeviceSnapshot],
     ai: AiConfig,
@@ -188,14 +195,17 @@ def generate_network_advice(
         return _fallback_network_advice()
 
 
+# 函数说明: resolve_api_key 的核心用途见函数实现逻辑。
 def resolve_api_key(api_key: str | None) -> str | None:
     return api_key or os.environ.get("DASHSCOPE_API_KEY")
 
 
+# 函数说明: _resolve_api_key 的核心用途见函数实现逻辑。
 def _resolve_api_key(api_key: str | None) -> str | None:
     return resolve_api_key(api_key)
 
 
+# 函数说明: answer_query 的核心用途见函数实现逻辑。
 def answer_query(
     query: str,
     snapshots: Iterable[DeviceSnapshot],
@@ -242,6 +252,7 @@ def answer_query(
         return _fallback_answer(query, snapshots)
 
 
+# 函数说明: answer_query_live 的核心用途见函数实现逻辑。
 def answer_query_live(
     query: str,
     snapshots: Iterable[DeviceSnapshot],
@@ -290,6 +301,7 @@ def answer_query_live(
         raise RuntimeError(f"AI 请求失败: {exc}") from exc
 
 
+# 函数说明: _build_query_prompt 的核心用途见函数实现逻辑。
 def _build_query_prompt(query: str, snapshots: Iterable[DeviceSnapshot]) -> str:
     parts = [
         "用户问题:",
@@ -312,6 +324,7 @@ def _build_query_prompt(query: str, snapshots: Iterable[DeviceSnapshot]) -> str:
     return "\n".join(parts)
 
 
+# 函数说明: _fallback_answer 的核心用途见函数实现逻辑。
 def _fallback_answer(query: str, snapshots: Iterable[DeviceSnapshot]) -> str:
     snapshot_list = list(snapshots)
     lowered = query.lower()
@@ -374,6 +387,7 @@ def _fallback_answer(query: str, snapshots: Iterable[DeviceSnapshot]) -> str:
     return "需要更完整的监控/日志数据才能回答该问题。"
 
 
+# 函数说明: _build_network_advice_prompt 的核心用途见函数实现逻辑。
 def _build_network_advice_prompt(snapshots: Iterable[DeviceSnapshot]) -> str:
     parts = [
         "请输出该网络的安全建议与优化建议，包含：",
@@ -399,6 +413,7 @@ def _build_network_advice_prompt(snapshots: Iterable[DeviceSnapshot]) -> str:
     return "\n".join(parts)
 
 
+# 函数说明: _fallback_network_advice 的核心用途见函数实现逻辑。
 def _fallback_network_advice() -> str:
     return (
         "安全建议: 启用强口令与分级账号、限制管理面访问、开启日志审计与告警。"

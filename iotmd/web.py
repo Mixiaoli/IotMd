@@ -91,11 +91,13 @@ class WebState:
 # ----------------------------
 # main web server
 # ----------------------------
+# 函数说明: run_web 的核心用途见函数实现逻辑。
 def run_web(args: argparse.Namespace) -> None:
     state = _build_initial_state(args)
     lock = threading.Lock()
 
     class Handler(BaseHTTPRequestHandler):
+        # 函数说明: _send_json 的核心用途见函数实现逻辑。
         def _send_json(self, payload: dict[str, Any], status: int = 200) -> None:
             import json
 
@@ -106,6 +108,7 @@ def run_web(args: argparse.Namespace) -> None:
             self.end_headers()
             self.wfile.write(data)
 
+        # 函数说明: _send_text 的核心用途见函数实现逻辑。
         def _send_text(self, content: str, content_type: str = "text/html; charset=utf-8") -> None:
             data = content.encode("utf-8")
             self.send_response(200)
@@ -114,6 +117,7 @@ def run_web(args: argparse.Namespace) -> None:
             self.end_headers()
             self.wfile.write(data)
 
+        # 函数说明: do_GET 的核心用途见函数实现逻辑。
         def do_GET(self) -> None:  # noqa: N802
             parsed = urlparse(self.path)
 
@@ -168,6 +172,7 @@ def run_web(args: argparse.Namespace) -> None:
 
             self.send_error(HTTPStatus.NOT_FOUND, "Not Found")
 
+        # 函数说明: do_POST 的核心用途见函数实现逻辑。
         def do_POST(self) -> None:  # noqa: N802
             import json
 
@@ -197,6 +202,7 @@ def run_web(args: argparse.Namespace) -> None:
                 body["jobId"] = job_id
             self._send_json(body)
 
+        # 函数说明: log_message 的核心用途见函数实现逻辑。
         def log_message(self, format: str, *args: Any) -> None:  # noqa: A003
             return
 
@@ -208,6 +214,7 @@ def run_web(args: argparse.Namespace) -> None:
 # ----------------------------
 # state init
 # ----------------------------
+# 函数说明: _build_initial_state 的核心用途见函数实现逻辑。
 def _build_initial_state(args: argparse.Namespace) -> WebState:
     defaults = Defaults()
     ai = AiConfig(
@@ -257,6 +264,7 @@ def _build_initial_state(args: argparse.Namespace) -> WebState:
 # ----------------------------
 # chat handler
 # ----------------------------
+# 函数说明: _handle_chat_message 的核心用途见函数实现逻辑。
 def _handle_chat_message(
     state: WebState, message: str, args: argparse.Namespace, lock: threading.Lock
 ) -> tuple[str, list[dict[str, str]], str | None]:
@@ -321,6 +329,7 @@ def _handle_chat_message(
 # ----------------------------
 # form flow
 # ----------------------------
+# 函数说明: _consume_form_answer 的核心用途见函数实现逻辑。
 def _consume_form_answer(
     state: WebState, message: str, args: argparse.Namespace, lock: threading.Lock
 ) -> tuple[str, list[dict[str, str]], str | None]:
@@ -482,6 +491,7 @@ def _consume_form_answer(
 # ----------------------------
 # live scanning (with progress)
 # ----------------------------
+# 函数说明: scan_subnet_live 的核心用途见函数实现逻辑。
 def scan_subnet_live(
     cidr: str,
     port: int,
@@ -533,6 +543,7 @@ def scan_subnet_live(
 # ----------------------------
 # job runners
 # ----------------------------
+# 函数说明: _start_job_scan_mode 的核心用途见函数实现逻辑。
 def _start_job_scan_mode(
     state: WebState, args: argparse.Namespace, lock: threading.Lock
 ) -> tuple[str, list[dict[str, str]], str | None]:
@@ -554,6 +565,7 @@ def _start_job_scan_mode(
     # reset form so chat returns to normal
     state.form = ConversationForm()
 
+    # 函数说明: worker 的核心用途见函数实现逻辑。
     def worker() -> None:
         try:
             # phase scanning (live)
@@ -562,6 +574,7 @@ def _start_job_scan_mode(
                 j.phase = "scanning"
                 j.message = f"正在扫描 {scan_cidr}（端口 {scan_port}）…"
 
+            # 函数说明: _on_scan_progress 的核心用途见函数实现逻辑。
             def _on_scan_progress(scanned_ips: int, found_open: int, ssh_open: int, target_total: int) -> None:
                 with lock:
                     j = state.jobs[job_id]
@@ -615,6 +628,7 @@ def _start_job_scan_mode(
     return "已开始生成文档任务（后台执行中）。我会实时显示扫描/采集进度。", [], job_id
 
 
+# 函数说明: _start_job_manual_mode 的核心用途见函数实现逻辑。
 def _start_job_manual_mode(
     state: WebState, inventory: Inventory, args: argparse.Namespace, lock: threading.Lock
 ) -> tuple[str, list[dict[str, str]], str | None]:
@@ -625,6 +639,7 @@ def _start_job_manual_mode(
     # reset form
     state.form = ConversationForm()
 
+    # 函数说明: worker 的核心用途见函数实现逻辑。
     def worker() -> None:
         try:
             _collect_and_generate_job(state, inventory, args, lock, job_id)
@@ -640,6 +655,7 @@ def _start_job_manual_mode(
     return "已开始生成文档任务（后台执行中）。我会实时显示采集/生成进度。", [], job_id
 
 
+# 函数说明: _collect_and_generate_job 的核心用途见函数实现逻辑。
 def _collect_and_generate_job(
     state: WebState, inventory: Inventory, args: argparse.Namespace, lock: threading.Lock, job_id: str
 ) -> None:
@@ -693,6 +709,7 @@ def _collect_and_generate_job(
         j.finished_at = time.time()
 
 
+# 函数说明: _collect_snapshots_web_with_progress 的核心用途见函数实现逻辑。
 def _collect_snapshots_web_with_progress(
     state: WebState, inventory: Inventory, timeout: int, lock: threading.Lock, job_id: str
 ) -> list:
@@ -753,6 +770,7 @@ def _collect_snapshots_web_with_progress(
 # ----------------------------
 # HTML (UI): fixed-height chat + internal scrollbar + statusbar spinner
 # ----------------------------
+# 函数说明: _index_html 的核心用途见函数实现逻辑。
 def _index_html() -> str:
     return """<!doctype html>
 <html lang="zh-CN">

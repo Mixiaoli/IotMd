@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from iotmd.collectors import DeviceSnapshot
-from iotmd.ssh import run_commands
+from iotmd.collectors.common import collect_device_snapshot
 
 
 COMMANDS = {
@@ -13,6 +13,7 @@ COMMANDS = {
 }
 
 
+# 函数说明: collect_huawei 的核心用途见函数实现逻辑。
 def collect_huawei(
     name: str,
     host: str,
@@ -21,27 +22,18 @@ def collect_huawei(
     password: str,
     timeout: int = 15,
 ) -> DeviceSnapshot:
-    results = run_commands(
+    """采集华为设备配置、邻居、接口和版本信息。"""
+    return collect_device_snapshot(
+        name=name,
+        vendor="huawei",
         host=host,
         port=port,
         username=username,
         password=password,
-        pre_commands=[COMMANDS["disable_paging"]],
-        commands=[
-            COMMANDS["config"],
-            COMMANDS["lldp"],
-            COMMANDS["interfaces"],
-            COMMANDS["version"],
-        ],
+        disable_paging=COMMANDS["disable_paging"],
+        config_cmd=COMMANDS["config"],
+        lldp_cmd=COMMANDS["lldp"],
+        interfaces_cmd=COMMANDS["interfaces"],
+        version_cmd=COMMANDS["version"],
         timeout=timeout,
-    )
-
-    outputs = {item.command: item.output for item in results}
-    return DeviceSnapshot(
-        name=name,
-        vendor="huawei",
-        config=outputs.get(COMMANDS["config"], ""),
-        lldp=outputs.get(COMMANDS["lldp"], ""),
-        interfaces=outputs.get(COMMANDS["interfaces"], ""),
-        version=outputs.get(COMMANDS["version"], ""),
     )
