@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Dict, List, Union
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -42,7 +43,7 @@ def build_documents(inventory: Inventory, snapshots: list[DeviceSnapshot]) -> Do
     return DocumentBundle(summary=summary, device_documents=device_docs)
 
 
-def write_documents(bundle: DocumentBundle, output_dir: str | Path) -> None:
+def write_documents(bundle: DocumentBundle, output_dir: Union[str, Path]) -> None:
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 

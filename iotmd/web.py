@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any, Callable, Dict, List, Optional, Tuple
 import argparse
 import ipaddress
 import os
@@ -11,7 +12,6 @@ from dataclasses import dataclass, field
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Callable
 from urllib.parse import urlparse
 
 from iotmd.ai import answer_query_live, is_requests_available, resolve_api_key
@@ -72,7 +72,7 @@ class JobState:
 
     download_links: list[dict[str, str]] = field(default_factory=list)
     created_at: float = field(default_factory=time.time)
-    finished_at: float | None = None
+    finished_at: Optional[float] = None
 
 
 @dataclass
@@ -81,9 +81,9 @@ class WebState:
     defaults: Defaults
     key_source: str = "none"
     startup_notice: str = ""
-    inventory: Inventory | None = None
+    inventory: Optional[Inventory] = None
     snapshots: list = field(default_factory=list)
-    last_output_dir: Path | None = None
+    last_output_dir: Optional[Path] = None
     form: ConversationForm = field(default_factory=ConversationForm)
     jobs: dict[str, JobState] = field(default_factory=dict)
 
@@ -259,7 +259,7 @@ def _build_initial_state(args: argparse.Namespace) -> WebState:
 # ----------------------------
 def _handle_chat_message(
     state: WebState, message: str, args: argparse.Namespace, lock: threading.Lock
-) -> tuple[str, list[dict[str, str]], str | None]:
+) -> Tuple[str, List[Dict[str, str]], Optional[str]]:
     if message == "__DEFAULT__":
         message = ""
     lowered = message.strip().lower()
@@ -323,7 +323,7 @@ def _handle_chat_message(
 # ----------------------------
 def _consume_form_answer(
     state: WebState, message: str, args: argparse.Namespace, lock: threading.Lock
-) -> tuple[str, list[dict[str, str]], str | None]:
+) -> Tuple[str, List[Dict[str, str]], Optional[str]]:
     form = state.form
     text = message.strip()
 
@@ -535,7 +535,7 @@ def scan_subnet_live(
 # ----------------------------
 def _start_job_scan_mode(
     state: WebState, args: argparse.Namespace, lock: threading.Lock
-) -> tuple[str, list[dict[str, str]], str | None]:
+) -> Tuple[str, List[Dict[str, str]], Optional[str]]:
     form = state.form
 
     job_id = uuid.uuid4().hex[:10]
@@ -617,7 +617,7 @@ def _start_job_scan_mode(
 
 def _start_job_manual_mode(
     state: WebState, inventory: Inventory, args: argparse.Namespace, lock: threading.Lock
-) -> tuple[str, list[dict[str, str]], str | None]:
+) -> Tuple[str, List[Dict[str, str]], Optional[str]]:
     job_id = uuid.uuid4().hex[:10]
     job = JobState(job_id=job_id, status="running", phase="init", message="任务已创建，准备开始…")
     state.jobs[job_id] = job
