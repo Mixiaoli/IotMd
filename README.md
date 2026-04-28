@@ -1,68 +1,54 @@
-# IotMd（纯 Web 应用）
+# IotMd（纯 Web 应用，前后端分离）
 
-IotMd 已调整为 **纯 Web 应用架构**：
-- 已砍掉命令行业务流程（不再提供 CLI 采集/问答模式）。
-- 使用 **FastAPI + Vue3 + MySQL**。
-- 用户必须登录后，才可使用 AI 交互。
-- 提供后台：用户权限管理、问题列表记录管理、API 大模型管理。
+IotMd 已改为 **前后端分离的 Web 应用**：
+- 后端：FastAPI API
+- 前端：Vue3 静态页面（`frontend/`）
+- 数据库：MySQL
 
-## 数据库 SQL 文件
+## 快速开始
 
-已提供可直接导入的 MySQL 初始化脚本：
-
-- `sql/iotmd_mysql.sql`
-
-导入示例：
+1) 初始化数据库
 
 ```bash
 mysql -u root -p < sql/iotmd_mysql.sql
 ```
 
-## 技术栈
-
-- 后端：FastAPI + SQLAlchemy
-- 前端：Vue3（单页）
-- 数据库：MySQL（`pymysql`）
-
-## 环境变量
-
-- `IOTMD_DATABASE_URL`（默认：`mysql+pymysql://iotmd:iotmd123@127.0.0.1:3306/iotmd?charset=utf8mb4`）
-- `IOTMD_ADMIN_USER`（默认 `admin`）
-- `IOTMD_ADMIN_PASSWORD`（默认 `admin123`）
-- `IOTMD_AUTH_SECRET`
-
-## 启动方式（Web）
+2) 启动后端
 
 ```bash
-pip install -r requirements.txt
-pip install -e .
+export IOTMD_DATABASE_URL='mysql+pymysql://iotmd:your_password@127.0.0.1:3306/iotmd?charset=utf8mb4'
+export IOTMD_AUTH_SECRET='replace-with-strong-secret'
+export IOTMD_CORS_ORIGINS='http://127.0.0.1:5173,http://localhost:5173'
 uvicorn iotmd.webapp:app --host 0.0.0.0 --port 8765
 ```
 
-访问：
+3) 启动前端
 
-- `http://127.0.0.1:8765/`
+```bash
+python -m http.server 5173 -d frontend
+```
 
-## 功能说明
+浏览器访问 `http://127.0.0.1:5173`。
 
-### 登录与鉴权
-- `POST /api/auth/login`
-- `GET /api/auth/me`
+## AI 大模型 Key 配置位置
 
-### AI 交互与历史
-- `POST /api/chat`
-- `GET /api/history`
+### 方案 1（推荐）
+管理员登录后，在后台“API 大模型管理”中配置：
+- name
+- provider（`openai-compatible` / `mock`）
+- base_url
+- api_key
+- 激活模型
 
-### 管理后台（管理员）
-- 用户权限管理
-  - `GET /api/admin/users`
-  - `POST /api/admin/users`
-  - `PATCH /api/admin/users/{user_id}`
-- 问题列表记录管理
-  - `GET /api/admin/questions`
-- API 大模型管理
-  - `GET /api/admin/models`
-  - `POST /api/admin/models`
-  - `PATCH /api/admin/models/{model_id}/activate`
+### 方案 2（默认兜底）
+设置环境变量：
 
-> `POST /api/chat` 当前为示例回答函数，后续可替换为真实大模型 API 调用。
+```bash
+export IOTMD_DEFAULT_MODEL_API_KEY='sk-xxxx'
+```
+
+当数据库模型配置里 `api_key` 为空时，会自动使用该环境变量。
+
+## 详细部署文档
+
+请看：`docs/WEB_DEPLOYMENT.md`

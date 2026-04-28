@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
 
+import requests
 from fastapi import Depends, FastAPI, Header, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import desc, select
-from sqlalchemy.orm import Session
 
 from iotmd.auth import create_token, hash_password, parse_token, verify_password
 from iotmd.database import ModelConfig, QuestionRecord, User, db_session, init_db
@@ -43,21 +42,25 @@ class ModelConfigRequest(BaseModel):
     is_active: bool = False
 
 
-app = FastAPI(title="IotMd Web")
+app = FastAPI(title="IotMd Web API")
+
+cors_origins = [x.strip() for x in os.getenv("IOTMD_CORS_ORIGINS", "http://127.0.0.1:5173,http://localhost:5173").split(",") if x.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
-def _generate_ai_answer(question: str, model: "Optional[ModelConfig]") -> str:
-    model_name = model.name if model else "default-model"
-    return f"[{model_name}] 已收到问题：{question}\n\n这是示例 AI 回答，请接入真实大模型 API。"
-
-
-def _token_from_header(authorization: "Optional[str]") -> str:
+def _token_from_header(authorization: Optional[str]) -> str:
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="未登录")
     return authorization.split(" ", 1)[1]
 
 
-def get_current_user(authorization: "Optional[str]" = Header(default=None, alias="Authorization")) -> User:
+def get_current_user(authorization: Optional[str] = Header(default=None, alias="Authorization")) -> User:
     token = _token_from_header(authorization)
     payload = parse_token(token)
     if not payload:
@@ -75,6 +78,48 @@ def get_admin_user(user: User = Depends(get_current_user)) -> User:
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="需要管理员权限")
     return user
+
+
+def _openai_chat(base_url: str, api_key: str, model_name: str, question: str) -> str:
+    url = base_url.rstrip("/")
+    if not url.endswith("/chat/completions"):
+        url = f"{url}/chat/completions"
+    resp = requests.post(
+        url,
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={
+            "model": model_name,
+            "messages": [
+                {"role": "system", "content": "你是 IotMd 的运维 AI 助手，请用简洁中文回答。"},
+                {"role": "user", "content": question},
+            ],
+            "temperature": 0.3,
+        },
+        timeout=45,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    choices = data.get("choices", [])
+    if not choices:
+        raise RuntimeError("模型返回为空")
+    return str(choices[0].get("message", {}).get("content", "")).strip() or "模型未返回内容"
+
+
+def _generate_ai_answer(question: str, model: Optional[ModelConfig]) -> str:
+    if not model:
+        return "未配置可用模型，请在后台 API 大模型管理里激活一个模型。"
+
+    provider = (model.provider or "").lower()
+    model_key = model.api_key or os.getenv("IOTMD_DEFAULT_MODEL_API_KEY", "")
+
+    if provider == "mock" or not model.base_url or not model_key:
+        tip = "当前为 mock 回答（请在后台配置 base_url + api_key）。"
+        return "[{}] {}\n\n你的问题：{}".format(model.name, tip, question)
+
+    try:
+        return _openai_chat(model.base_url, model_key, model.name, question)
+    except Exception as exc:  # noqa: BLE001
+        return "模型调用失败：{}\n\n已回退 mock 回答：{}".format(exc, question)
 
 
 @app.on_event("startup")
@@ -99,8 +144,8 @@ def startup() -> None:
 
 
 @app.get("/")
-def index() -> FileResponse:
-    return FileResponse(Path(__file__).resolve().parent / "frontend" / "index.html")
+def root() -> Dict[str, str]:
+    return {"service": "iotmd-web-api", "status": "ok"}
 
 
 @app.post("/api/auth/login")
