@@ -16,7 +16,7 @@ devices:
     host: "192.0.2.10"
     port: 22
     username: "huawei"
-    password: "Xdf@123.456"
+    password: "password"
   - name: "ap-1"
     vendor: "ruijie"
     host: "192.0.2.20"
