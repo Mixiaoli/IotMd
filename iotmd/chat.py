@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from typing import Callable, List, Optional, Tuple
 from dataclasses import dataclass
-from typing import Callable
 
 from iotmd.ai import answer_query
 from iotmd.collectors import DeviceSnapshot
@@ -12,9 +12,9 @@ from iotmd.config import AiConfig, Inventory
 class ChatContext:
     ai: AiConfig
     snapshots: list[DeviceSnapshot]
-    inventory: Inventory | None = None
-    load_data: Callable[[], tuple[Inventory, list[DeviceSnapshot]]] | None = None
-    generate_docs: Callable[[Inventory, list[DeviceSnapshot]], None] | None = None
+    inventory: Optional[Inventory] = None
+    load_data: Optional[Callable[[], Tuple[Inventory, List[DeviceSnapshot]]]] = None
+    generate_docs: Optional[Callable[[Inventory, List[DeviceSnapshot]], None]] = None
 
 
 def run_chat_loop(context: ChatContext) -> None:

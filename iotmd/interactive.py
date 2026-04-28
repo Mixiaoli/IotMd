@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Optional
 import os
 
 from iotmd.ai import build_ai_question
@@ -16,7 +17,7 @@ def prompt_inventory() -> Inventory:
     email = _prompt(_ask(ai, "联系邮箱"), default="")
 
     devices: list[DeviceConfig]
-    subnet_cidr: str | None = None
+    subnet_cidr: Optional[str] = None
     subnet_hosts: list[SubnetHost] = []
     if prompt_yes_no("是否按网段自动发现设备 (y/n)", default="n"):
         devices, subnet_cidr, subnet_hosts = _prompt_discovered_devices(ai)

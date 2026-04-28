@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+from typing import Iterable, Optional
 import importlib
 import importlib.util
 import os
 from dataclasses import dataclass
-from typing import Iterable
 
 if importlib.util.find_spec("requests") is not None:
     requests = importlib.import_module("requests")
@@ -38,7 +38,7 @@ def summarize_device(
     api_base: str,
     model: str,
     enabled: bool,
-    api_key: str | None = None,
+    api_key: Optional[str] = None,
 ) -> AiSummary:
     if not enabled:
         return AiSummary(device_name=snapshot.name, summary=_fallback_summary(snapshot))
@@ -85,7 +85,7 @@ def build_ai_question(
     label: str,
     api_base: str,
     model: str,
-    api_key: str | None,
+    api_key: Optional[str],
 ) -> str:
     resolved_key = resolve_api_key(api_key)
     if not resolved_key:
@@ -188,11 +188,11 @@ def generate_network_advice(
         return _fallback_network_advice()
 
 
-def resolve_api_key(api_key: str | None) -> str | None:
+def resolve_api_key(api_key: Optional[str]) -> Optional[str]:
     return api_key or os.environ.get("DASHSCOPE_API_KEY")
 
 
-def _resolve_api_key(api_key: str | None) -> str | None:
+def _resolve_api_key(api_key: Optional[str]) -> Optional[str]:
     return resolve_api_key(api_key)
 
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Optional
 import logging
 import time
 from dataclasses import dataclass
@@ -40,7 +41,7 @@ def run_commands(
     )
 
     results: list[CommandResult] = []
-    shell: paramiko.Channel | None = None
+    shell: Optional[paramiko.Channel] = None
     try:
         shell = client.invoke_shell(width=240, height=1000)
         shell.settimeout(timeout)

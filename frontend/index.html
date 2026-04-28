@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IotMd 控制台</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+</head>
+<body>
+  <div id="app" class="app">
+    <header class="topbar">
+      <div class="brand">IotMd</div>
+      <nav class="menu">
+        <a class="active">首页</a>
+        <a>项目</a>
+        <a>模型市场</a>
+      </nav>
+      <div class="avatar">{{ me?.username?.slice(0,1) || 'U' }}</div>
+    </header>
+
+    <section v-if="!token" class="login-wrap">
+      <div class="panel login-panel">
+        <h2>登录到 IotMd</h2>
+        <input v-model="loginForm.username" placeholder="用户名" />
+        <input v-model="loginForm.password" type="password" placeholder="密码" />
+        <button @click="doLogin">登录</button>
+        <p class="hint">默认管理员：admin / admin123</p>
+      </div>
+    </section>
+
+    <section v-else class="workspace">
+      <aside class="history">
+        <div class="history-title">历史问题</div>
+        <button
+          v-for="h in history"
+          :key="h.id"
+          class="history-item"
+          :class="{selected: selected && selected.id === h.id}"
+          @click="selectHistory(h)"
+        >
+          <div class="q">{{ h.question }}</div>
+          <div class="t">{{ h.created_at }}</div>
+        </button>
+      </aside>
+
+      <main class="center">
+        <h1>一句话发起运维 AI 交互</h1>
+        <p class="sub">前后端分离 / 登录鉴权 / 历史可追溯 / 后台模型管理</p>
+
+        <div class="ask-box panel">
+          <textarea v-model="question" placeholder="输入你的问题..." rows="4"></textarea>
+          <div class="ask-actions">
+            <div class="model-name">{{ currentModelTip }}</div>
+            <button @click="ask">发送</button>
+          </div>
+        </div>
+
+        <div class="panel answer" v-if="answer">
+          <h3>AI 回答</h3>
+          <pre>{{ answer }}</pre>
+        </div>
+
+        <div class="panel" v-if="me && me.is_admin">
+          <h3>后台管理</h3>
+          <div class="admin-grid">
+            <button @click="loadUsers">用户权限管理</button>
+            <button @click="loadQuestions">问题列表记录</button>
+            <button @click="loadModels">API 大模型管理</button>
+          </div>
+
+          <div v-if="users.length" class="list-block">
+            <h4>用户权限</h4>
+            <div v-for="u in users" :key="u.id" class="line">
+              <span>{{u.username}}</span>
+              <label><input type="checkbox" v-model="u.is_admin"/> 管理员</label>
+              <label><input type="checkbox" v-model="u.can_use_ai"/> AI权限</label>
+              <button @click="saveUser(u)">保存</button>
+            </div>
+          </div>
+
+          <div v-if="questions.length" class="list-block">
+            <h4>问题记录</h4>
+            <div v-for="q in questions" :key="q.id" class="line-col">
+              <b>{{q.username}}:</b> {{q.question}}
+              <pre>{{q.answer}}</pre>
+            </div>
+          </div>
+
+          <div class="list-block">
+            <h4>模型配置</h4>
+            <div class="model-form">
+              <input v-model="newModel.name" placeholder="模型名（如 gpt-4o-mini）" />
+              <input v-model="newModel.provider" placeholder="provider（openai-compatible/mock）" />
+              <input v-model="newModel.base_url" placeholder="base_url（如 https://api.openai.com/v1）" />
+              <input v-model="newModel.api_key" placeholder="api_key（可留空走默认环境变量）" />
+              <label><input type="checkbox" v-model="newModel.is_active" /> 新建后设为激活</label>
+              <button @click="createModel">新增模型</button>
+            </div>
+            <div v-for="m in models" :key="m.id" class="line">
+              <span>{{m.name}} / {{m.provider}}</span>
+              <span>active: {{m.is_active}}</span>
+              <button @click="activateModel(m.id)">设为激活</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

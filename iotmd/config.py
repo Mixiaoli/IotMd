@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from typing import Any, Optional, Union
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 import importlib
 import importlib.util
 
@@ -17,7 +17,7 @@ class AiConfig:
     enabled: bool
     api_base: str
     model: str
-    api_key: str | None = None
+    api_key: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -44,11 +44,11 @@ class Inventory:
     contacts: dict[str, str]
     ai: AiConfig
     devices: list[DeviceConfig]
-    subnet_cidr: str | None = None
+    subnet_cidr: Optional[str] = None
     subnet_hosts: list[SubnetHost] = field(default_factory=list)
 
 
-def load_inventory(path: str | Path) -> Inventory:
+def load_inventory(path: Union[str, Path]) -> Inventory:
     if yaml is None:
         raise RuntimeError("缺少 pyyaml 依赖，请先安装 pyyaml")
     data: dict[str, Any]
